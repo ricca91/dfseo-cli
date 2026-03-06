@@ -39,7 +39,9 @@ class TestBacklinksSummaryCommand:
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "rank": 245,
                             "backlinks": 1420,
@@ -76,7 +78,9 @@ class TestBacklinksSummaryCommand:
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "rank": 100,
                             "backlinks": 500,
@@ -107,7 +111,9 @@ class TestBacklinksListCommand:
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "total_count": 1000,
                             "items": [
@@ -137,7 +143,11 @@ class TestBacklinksListCommand:
     def test_list_with_filters(self, mock_env_credentials: None) -> None:
         """Test list with filters."""
         route = respx.post(f"{API_BASE_URL}/backlinks/backlinks/live").mock(
-            return_value=httpx.Response(200, json={"tasks": [{"result": [{"total_count": 50, "items": []}]}], "cost": 0.01})
+            return_value=httpx.Response(200, json={
+                "status_code": 20000,
+                "tasks": [{"status_code": 20000, "result": [{"total_count": 50, "items": []}]}],
+                "cost": 0.01,
+            })
         )
 
         result = runner.invoke(app, [
@@ -164,7 +174,9 @@ class TestBacklinksAnchorsCommand:
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "total_count": 50,
                             "items": [
@@ -194,7 +206,9 @@ class TestBacklinksReferringDomainsCommand:
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "total_count": 300,
                             "items": [
@@ -224,7 +238,9 @@ class TestBacklinksBulkCommand:
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "items": [
                                 {"target": "site1.com", "rank": 100, "backlinks": 500},

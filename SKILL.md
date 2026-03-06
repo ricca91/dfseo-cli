@@ -540,16 +540,69 @@ dfseo backlinks referring-domains "example.com"
 dfseo backlinks referring-domains "example.com" --min-backlinks 5 --sort rank
 ```
 
-### Bulk Rank Comparison
+### Backlink History
+
+View backlink profile history over time (data from 2019 onwards).
+
+```bash
+# Full history
+dfseo backlinks history "example.com"
+
+# Specific date range
+dfseo backlinks history "example.com" --from 2025-01 --to 2026-03
+```
+
+### Backlink Competitors
+
+Find competitors sharing backlink profile with the target.
+
+```bash
+dfseo backlinks competitors "example.com" --sort rank --limit 20
+```
+
+### Link Gap Analysis
+
+Find domains linking to competitors but not to you.
+
+```bash
+# Domain intersection
+dfseo backlinks gap "mysite.com" "competitor1.com" "competitor2.com"
+
+# Page intersection
+dfseo backlinks gap "mysite.com" "competitor.com" --mode page
+
+# With filters
+dfseo backlinks gap "mysite.com" "competitor.com" --min-rank 200 --dofollow-only
+```
+
+### Backlink Pages
+
+List pages with most backlinks for a target.
+
+```bash
+dfseo backlinks pages "example.com" --sort backlinks --limit 20
+```
+
+### Bulk Operations
 
 Compare backlink metrics for up to 1000 targets.
 
 ```bash
-# Multiple domains
+# Ranks
 dfseo backlinks bulk ranks "site1.com" "site2.com" "site3.com"
-
-# From file
 dfseo backlinks bulk ranks --from-file domains.txt
+
+# Backlink counts
+dfseo backlinks bulk backlinks --from-file domains.txt
+
+# Spam scores
+dfseo backlinks bulk spam-score --from-file domains.txt
+
+# Referring domains
+dfseo backlinks bulk referring-domains --from-file domains.txt
+
+# New & lost backlinks
+dfseo backlinks bulk new-lost --from-file domains.txt --from-date 2025-09-01
 ```
 
 ## When to Use

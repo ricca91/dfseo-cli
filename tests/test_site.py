@@ -88,11 +88,14 @@ class TestSiteSummaryCommand:
     @respx.mock
     def test_summary_basic(self, mock_env_credentials: None) -> None:
         """Test getting summary for a task."""
-        respx.get(f"{API_BASE_URL}/on_page/summary/task-12345").mock(
+        task_id = "07281559-0695-0216-0000-c269be8b7592"
+        respx.get(f"{API_BASE_URL}/on_page/summary/{task_id}").mock(
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "domain": {"name": "example.com"},
                             "crawl_progress": "finished",
@@ -108,7 +111,7 @@ class TestSiteSummaryCommand:
             )
         )
 
-        result = runner.invoke(app, ["site", "summary", "task-12345"])
+        result = runner.invoke(app, ["site", "summary", task_id])
 
         assert result.exit_code == 0
         assert "example.com" in result.output or "45" in result.output
@@ -116,11 +119,14 @@ class TestSiteSummaryCommand:
     @respx.mock
     def test_summary_json_output(self, mock_env_credentials: None) -> None:
         """Test summary with JSON output."""
-        respx.get(f"{API_BASE_URL}/on_page/summary/task-12345").mock(
+        task_id = "07281559-0695-0216-0000-c269be8b7592"
+        respx.get(f"{API_BASE_URL}/on_page/summary/{task_id}").mock(
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "domain": {"name": "example.com"},
                             "crawl_progress": "finished",
@@ -132,7 +138,7 @@ class TestSiteSummaryCommand:
             )
         )
 
-        result = runner.invoke(app, ["site", "summary", "task-12345", "-o", "json"])
+        result = runner.invoke(app, ["site", "summary", task_id, "-o", "json"])
 
         assert result.exit_code == 0
         output = json.loads(result.output)
@@ -149,7 +155,9 @@ class TestSiteAuditCommand:
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "items": [{
                                 "url": "https://example.com/page",
@@ -186,11 +194,14 @@ class TestSitePagesCommand:
     @respx.mock
     def test_pages_basic(self, mock_env_credentials: None) -> None:
         """Test getting pages for a task."""
+        task_id = "07281559-0695-0216-0000-c269be8b7592"
         respx.post(f"{API_BASE_URL}/on_page/pages").mock(
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "total_count": 45,
                             "items": [
@@ -210,7 +221,7 @@ class TestSitePagesCommand:
             )
         )
 
-        result = runner.invoke(app, ["site", "pages", "task-12345"])
+        result = runner.invoke(app, ["site", "pages", task_id])
 
         assert result.exit_code == 0
         assert "Home" in result.output or "45" in result.output
@@ -232,11 +243,14 @@ class TestSiteLinksCommand:
     @respx.mock
     def test_links_broken(self, mock_env_credentials: None) -> None:
         """Test getting broken links."""
+        task_id = "07281559-0695-0216-0000-c269be8b7592"
         respx.post(f"{API_BASE_URL}/on_page/links").mock(
             return_value=httpx.Response(
                 200,
                 json={
+                    "status_code": 20000,
                     "tasks": [{
+                        "status_code": 20000,
                         "result": [{
                             "total_count": 5,
                             "items": [
@@ -253,7 +267,7 @@ class TestSiteLinksCommand:
             )
         )
 
-        result = runner.invoke(app, ["site", "links", "task-12345", "--type", "broken"])
+        result = runner.invoke(app, ["site", "links", task_id, "--type", "broken"])
 
         assert result.exit_code == 0
         assert "404" in result.output or "broken" in result.output.lower()
