@@ -1,0 +1,51 @@
+{
+  "version": "3.0",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.4567s",
+  "cost": 0.008,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "test-task-id",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.4567s",
+      "cost": 0.008,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "keywords_data",
+        "google_ads",
+        "keywords_for_keywords",
+        "live"
+      ],
+      "data": {
+        "keywords": ["email hosting"],
+        "location_name": "Italy",
+        "language_name": "Italian"
+      },
+      "result": [
+        {
+          "items": [
+            {
+              "keyword": "best email hosting",
+              "search_volume": 1500,
+              "cpc": 4.10,
+              "competition": 0.75,
+              "competition_level": "HIGH"
+            },
+            {
+              "keyword": "business email hosting",
+              "search_volume": 1200,
+              "cpc": 3.80,
+              "competition": 0.68,
+              "competition_level": "HIGH"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

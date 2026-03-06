@@ -1,0 +1,55 @@
+{
+  "version": "3.0",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.1234s",
+  "cost": 0.012,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "test-task-id",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.1234s",
+      "cost": 0.012,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "dataforseo_labs",
+        "google",
+        "search_intent",
+        "live"
+      ],
+      "data": {
+        "keywords": ["buy email hosting", "what is DKIM", "smtp server setup guide"],
+        "location_name": "Italy",
+        "language_name": "Italian"
+      },
+      "result": [
+        {
+          "items": [
+            {
+              "keyword": "buy email hosting",
+              "main_intent": "transactional",
+              "foreign_intents": ["commercial"],
+              "probability": 0.92
+            },
+            {
+              "keyword": "what is DKIM",
+              "main_intent": "informational",
+              "foreign_intents": [],
+              "probability": 0.98
+            },
+            {
+              "keyword": "smtp server setup guide",
+              "main_intent": "informational",
+              "foreign_intents": ["navigational"],
+              "probability": 0.85
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

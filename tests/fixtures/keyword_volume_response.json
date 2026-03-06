@@ -1,0 +1,86 @@
+{
+  "version": "3.0",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.1234s",
+  "cost": 0.0105,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "test-task-id",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.1234s",
+      "cost": 0.0105,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "dataforseo_labs",
+        "google",
+        "keyword_overview",
+        "live"
+      ],
+      "data": {
+        "keywords": ["email hosting", "smtp provider"],
+        "location_name": "Italy",
+        "language_name": "Italian",
+        "include_serp_info": true
+      },
+      "result": [
+        {
+          "items": [
+            {
+              "keyword": "email hosting",
+              "keyword_data": {
+                "keyword_info": {
+                  "search_volume": 2400,
+                  "cpc": 3.45,
+                  "competition": 0.82,
+                  "competition_level": "HIGH",
+                  "monthly_searches": [
+                    {"month": 3, "year": 2026, "search_volume": 2400},
+                    {"month": 2, "year": 2026, "search_volume": 2200}
+                  ]
+                },
+                "search_intent_info": {
+                  "main_intent": "commercial",
+                  "foreign_intents": ["informational"]
+                }
+              },
+              "keyword_properties": {
+                "keyword_difficulty": 67
+              },
+              "serp_info": {
+                "serp_count": 245000000,
+                "features": ["featured_snippet", "people_also_ask", "sitelinks"]
+              }
+            },
+            {
+              "keyword": "smtp provider",
+              "keyword_data": {
+                "keyword_info": {
+                  "search_volume": 880,
+                  "cpc": 5.12,
+                  "competition": 0.65,
+                  "competition_level": "MEDIUM",
+                  "monthly_searches": [
+                    {"month": 3, "year": 2026, "search_volume": 880}
+                  ]
+                },
+                "search_intent_info": {
+                  "main_intent": "commercial",
+                  "foreign_intents": ["transactional"]
+                }
+              },
+              "keyword_properties": {
+                "keyword_difficulty": 52
+              },
+              "serp_info": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

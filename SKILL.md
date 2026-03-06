@@ -252,6 +252,90 @@ Credentials are resolved in this order:
 | `--quiet` | `-q` | Suppress non-error output |
 | `--version` | `-V` | Show version |
 
+## Keywords Data Commands
+
+### Keyword Volume
+
+Get search volume, CPC, competition, and keyword difficulty for multiple keywords (up to 700).
+
+```bash
+# Single keyword
+dfseo keywords volume "email hosting"
+
+# Multiple keywords
+dfseo keywords volume "email hosting" "smtp provider" "email server"
+
+# From file
+dfseo keywords volume --from-file keywords.txt --location "Italy"
+```
+
+### Keyword Suggestions (Long-tail)
+
+Find long-tail keywords that contain your seed keyword.
+
+```bash
+dfseo keywords suggestions "email hosting" \
+  --min-volume 100 \
+  --max-difficulty 40 \
+  --limit 50
+```
+
+### Keyword Ideas (Semantic)
+
+Find semantically related keywords (not necessarily containing the seed).
+
+```bash
+dfseo keywords ideas "email hosting" "smtp service" \
+  --location "Italy" \
+  --limit 100
+```
+
+### Keyword Difficulty (Bulk)
+
+Get keyword difficulty for up to 1000 keywords at once.
+
+```bash
+dfseo keywords difficulty "kw1" "kw2" "kw3" --location "Italy"
+# Or from file
+dfseo keywords difficulty --from-file keywords.txt
+```
+
+### Search Intent Classification
+
+Classify search intent for up to 1000 keywords.
+
+```bash
+dfseo keywords search-intent "buy hosting" "what is smtp" "gmail login"
+```
+
+### Keywords for Domain
+
+Find keywords relevant to a specific domain.
+
+```bash
+dfseo keywords for-site "example.com" \
+  --min-volume 50 \
+  --sort volume
+```
+
+### Google Ads Volume
+
+Get pure Google Ads data (volume, CPC, competition) — max 20 keywords, 12 req/min rate limit.
+
+```bash
+dfseo keywords ads-volume "email hosting" "smtp provider"
+```
+
+### Google Ads Suggestions
+
+Get keyword suggestions from Google Ads — max 20 seed keywords, 12 req/min rate limit.
+
+```bash
+dfseo keywords ads-suggestions "email hosting" "smtp" \
+  --location "Italy" \
+  --limit 100
+```
+
 ## When to Use
 
 Use `dfseo-cli` when you need:

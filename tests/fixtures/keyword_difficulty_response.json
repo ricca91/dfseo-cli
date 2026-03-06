@@ -1,0 +1,49 @@
+{
+  "version": "3.0",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.1234s",
+  "cost": 0.0103,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "test-task-id",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.1234s",
+      "cost": 0.0103,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "dataforseo_labs",
+        "google",
+        "bulk_keyword_difficulty",
+        "live"
+      ],
+      "data": {
+        "keywords": ["email hosting", "smtp provider", "webmail"],
+        "location_name": "Italy",
+        "language_name": "Italian"
+      },
+      "result": [
+        {
+          "items": [
+            {
+              "keyword": "email hosting",
+              "keyword_difficulty": 67
+            },
+            {
+              "keyword": "smtp provider",
+              "keyword_difficulty": 52
+            },
+            {
+              "keyword": "webmail",
+              "keyword_difficulty": 45
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
