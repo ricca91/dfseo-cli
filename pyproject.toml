@@ -41,7 +41,7 @@ dev = [
 ]
 
 [project.scripts]
-dfseo = "dfseo.cli:main"
+dfseo = "dfseo.cli:cli_main"
 
 [project.urls]
 Homepage = "https://github.com/example/dfseo-cli"
@@ -66,4 +66,3 @@ warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-asyncio_mode = "auto"
