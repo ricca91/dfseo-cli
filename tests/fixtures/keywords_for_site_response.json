@@ -1,0 +1,58 @@
+{
+  "version": "3.0",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.2345s",
+  "cost": 0.035,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "test-task-id",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.2345s",
+      "cost": 0.035,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "dataforseo_labs",
+        "google",
+        "keywords_for_site",
+        "live"
+      ],
+      "data": {
+        "target": "qboxmail.it",
+        "location_name": "Italy",
+        "language_name": "Italian"
+      },
+      "result": [
+        {
+          "total_count": 342,
+          "items": [
+            {
+              "keyword": "email hosting professionale",
+              "keyword_data": {
+                "keyword_info": {
+                  "search_volume": 480,
+                  "cpc": 2.90,
+                  "competition": 0.55
+                },
+                "search_intent_info": {
+                  "main_intent": "commercial"
+                }
+              },
+              "keyword_properties": {
+                "keyword_difficulty": 41
+              },
+              "serp_info": {
+                "serp_count": 12400000,
+                "features": ["people_also_ask"]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

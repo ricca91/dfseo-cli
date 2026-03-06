@@ -1,0 +1,86 @@
+{
+  "version": "3.0",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.2345s",
+  "cost": 0.021,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "test-task-id",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.2345s",
+      "cost": 0.021,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "dataforseo_labs",
+        "google",
+        "keyword_suggestions",
+        "live"
+      ],
+      "data": {
+        "keyword": "email hosting",
+        "location_name": "Italy",
+        "language_name": "Italian"
+      },
+      "result": [
+        {
+          "total_count": 1245,
+          "items": [
+            {
+              "keyword": "best email hosting for small business",
+              "keyword_data": {
+                "keyword_info": {
+                  "search_volume": 1200,
+                  "cpc": 4.20,
+                  "competition": 0.71
+                },
+                "search_intent_info": {
+                  "main_intent": "commercial"
+                }
+              },
+              "keyword_properties": {
+                "keyword_difficulty": 38
+              }
+            },
+            {
+              "keyword": "cheap email hosting",
+              "keyword_data": {
+                "keyword_info": {
+                  "search_volume": 950,
+                  "cpc": 2.80,
+                  "competition": 0.55
+                },
+                "search_intent_info": {
+                  "main_intent": "transactional"
+                }
+              },
+              "keyword_properties": {
+                "keyword_difficulty": 31
+              }
+            },
+            {
+              "keyword": "free email hosting",
+              "keyword_data": {
+                "keyword_info": {
+                  "search_volume": 720,
+                  "cpc": 1.90,
+                  "competition": 0.48
+                },
+                "search_intent_info": {
+                  "main_intent": "transactional"
+                }
+              },
+              "keyword_properties": {
+                "keyword_difficulty": 25
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

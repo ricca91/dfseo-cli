@@ -1,0 +1,57 @@
+{
+  "version": "3.0",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.3456s",
+  "cost": 0.005,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "test-task-id",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.3456s",
+      "cost": 0.005,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "keywords_data",
+        "google_ads",
+        "search_volume",
+        "live"
+      ],
+      "data": {
+        "keywords": ["email hosting", "smtp provider"],
+        "location_name": "Italy",
+        "language_name": "Italian"
+      },
+      "result": [
+        {
+          "items": [
+            {
+              "keyword": "email hosting",
+              "search_volume": 2400,
+              "cpc": 3.45,
+              "competition": 0.82,
+              "competition_level": "HIGH",
+              "monthly_searches": [
+                {"month": 3, "year": 2026, "search_volume": 2400}
+              ]
+            },
+            {
+              "keyword": "smtp provider",
+              "search_volume": 880,
+              "cpc": 5.12,
+              "competition": 0.65,
+              "competition_level": "MEDIUM",
+              "monthly_searches": [
+                {"month": 3, "year": 2026, "search_volume": 880}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import typer
 
 from dfseo.commands.auth import auth_app
 from dfseo.commands.config import config_app
+from dfseo.commands.keywords import keywords_app
 from dfseo.commands.serp import serp_app
 from dfseo.output import print_error
 
@@ -20,22 +21,30 @@ app = typer.Typer(
 # Register subcommands
 app.add_typer(auth_app, name="auth")
 app.add_typer(config_app, name="config")
+app.add_typer(keywords_app, name="keywords")
 app.add_typer(serp_app, name="serp")
+
+
+def _version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        from dfseo import __version__
+
+        print(__version__)
+        raise typer.Exit(0)
 
 
 @app.callback()
 def main(
-    version: bool = typer.Option(False, "--version", "-V", help="Show version"),
+    version: bool = typer.Option(
+        False, "--version", "-V", help="Show version", callback=_version_callback
+    ),
 ) -> None:
     """DataForSEO CLI - SEO data from your terminal.
 
     JSON-first, machine-readable, human-friendly.
     """
-    if version:
-        from dfseo import __version__
-
-        print(__version__)
-        raise typer.Exit()
+    pass
 
 
 def cli_main() -> None:
