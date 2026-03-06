@@ -477,6 +477,81 @@ List all your tasks.
 dfseo site tasks
 ```
 
+## Backlinks Commands
+
+Note: Backlinks API requires a $100/month minimum commitment.
+
+### Backlink Profile Summary
+
+Get comprehensive backlink profile overview.
+
+```bash
+# Domain summary
+dfseo backlinks summary "example.com"
+
+# With filters
+dfseo backlinks summary "example.com" --dofollow-only --status live
+
+# URL-specific summary
+dfseo backlinks summary "https://example.com/page"
+```
+
+### List Backlinks
+
+Get detailed list of backlinks with filtering.
+
+```bash
+# All backlinks
+dfseo backlinks list "example.com"
+
+# Only dofollow, sorted by rank
+dfseo backlinks list "example.com" --dofollow-only --sort rank --limit 50
+
+# New/Lost/Broken backlinks
+dfseo backlinks list "example.com" --status new
+dfseo backlinks list "example.com" --status lost
+dfseo backlinks list "example.com" --status broken
+
+# Filter by source domain
+dfseo backlinks list "example.com" --from-domain "techblog.com"
+```
+
+### Anchor Text Analysis
+
+Analyze anchor text distribution.
+
+```bash
+# All anchors
+dfseo backlinks anchors "example.com"
+
+# Search specific anchor text
+dfseo backlinks anchors "example.com" --search "brand name" --sort backlinks
+```
+
+### Referring Domains
+
+List domains linking to the target.
+
+```bash
+# All referring domains
+dfseo backlinks referring-domains "example.com"
+
+# With minimum backlinks filter
+dfseo backlinks referring-domains "example.com" --min-backlinks 5 --sort rank
+```
+
+### Bulk Rank Comparison
+
+Compare backlink metrics for up to 1000 targets.
+
+```bash
+# Multiple domains
+dfseo backlinks bulk ranks "site1.com" "site2.com" "site3.com"
+
+# From file
+dfseo backlinks bulk ranks --from-file domains.txt
+```
+
 ## When to Use
 
 Use `dfseo-cli` when you need:

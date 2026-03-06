@@ -11,6 +11,7 @@ from dfseo.commands.config import config_app
 from dfseo.commands.keywords import keywords_app
 from dfseo.commands.serp import serp_app
 from dfseo.commands.site import app as site_app
+from dfseo.commands.backlinks import app as backlinks_app
 from dfseo.output import print_error
 
 app = typer.Typer(
@@ -25,6 +26,7 @@ app.add_typer(config_app, name="config")
 app.add_typer(keywords_app, name="keywords")
 app.add_typer(serp_app, name="serp")
 app.add_typer(site_app, name="site")
+app.add_typer(backlinks_app, name="backlinks")
 
 
 def _version_callback(value: bool) -> None:
