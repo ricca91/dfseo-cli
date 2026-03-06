@@ -1,0 +1,87 @@
+{
+  "version": "3.20191202",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.1567 sec",
+  "cost": 0.001,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "abcd1234-abcd-1234-abcd-1234abcd5678",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.1567 sec",
+      "cost": 0.001,
+      "result_count": 20,
+      "path": [
+        "v3",
+        "serp",
+        "youtube",
+        "organic",
+        "live",
+        "advanced"
+      ],
+      "data": {
+        "api": "serp",
+        "function": "live",
+        "se": "youtube",
+        "keyword": "email marketing tutorial",
+        "location_name": "United States",
+        "language_name": "English",
+        "device": "desktop"
+      },
+      "result": [
+        {
+          "keyword": "email marketing tutorial",
+          "type": "organic",
+          "se_domain": "youtube.com",
+          "location": "United States",
+          "language": "English",
+          "check_url": "https://www.youtube.com/results?search_query=email+marketing+tutorial",
+          "datetime": "2026-03-06 14:30:00 +00:00",
+          "spell": null,
+          "item_types": [
+            "organic",
+            "channel",
+            "related_searches"
+          ],
+          "se_results_count": 8500000,
+          "items_count": 22,
+          "items": [
+            {
+              "type": "organic",
+              "rank_group": 1,
+              "rank_absolute": 1,
+              "url": "https://www.youtube.com/watch?v=xyz123abc",
+              "domain": "youtube.com",
+              "title": "Email Marketing Tutorial for Beginners 2026",
+              "description": "Complete email marketing tutorial covering list building, automation, and campaign optimization.",
+              "breadcrumb": "youtube.com › watch"
+            },
+            {
+              "type": "organic",
+              "rank_group": 2,
+              "rank_absolute": 2,
+              "url": "https://www.youtube.com/watch?v=abc789xyz",
+              "domain": "youtube.com",
+              "title": "How to Build an Email List from Scratch",
+              "description": "Learn proven strategies to grow your email list fast. Includes free templates and automation workflows.",
+              "breadcrumb": "youtube.com › watch"
+            },
+            {
+              "type": "organic",
+              "rank_group": 3,
+              "rank_absolute": 3,
+              "url": "https://www.youtube.com/watch?v=def456ghi",
+              "domain": "youtube.com",
+              "title": "Email Automation Masterclass",
+              "description": "Advanced email automation techniques to scale your business. Covers segmentation and personalization.",
+              "breadcrumb": "youtube.com › watch"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

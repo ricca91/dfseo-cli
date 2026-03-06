@@ -1,0 +1,91 @@
+{
+  "version": "3.20191202",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.0234 sec",
+  "cost": 0,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "lang1234-lang-1234-lang-1234lang5678",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.0234 sec",
+      "cost": 0,
+      "result_count": 40,
+      "path": [
+        "v3",
+        "serp",
+        "google",
+        "languages"
+      ],
+      "data": {
+        "api": "serp",
+        "function": "languages"
+      },
+      "result": [
+        {
+          "language_name": "English",
+          "language_code": "en"
+        },
+        {
+          "language_name": "Italian",
+          "language_code": "it"
+        },
+        {
+          "language_name": "Spanish",
+          "language_code": "es"
+        },
+        {
+          "language_name": "French",
+          "language_code": "fr"
+        },
+        {
+          "language_name": "German",
+          "language_code": "de"
+        },
+        {
+          "language_name": "Portuguese",
+          "language_code": "pt"
+        },
+        {
+          "language_name": "Russian",
+          "language_code": "ru"
+        },
+        {
+          "language_name": "Japanese",
+          "language_code": "ja"
+        },
+        {
+          "language_name": "Chinese (Simplified)",
+          "language_code": "zh-CN"
+        },
+        {
+          "language_name": "Chinese (Traditional)",
+          "language_code": "zh-TW"
+        },
+        {
+          "language_name": "Arabic",
+          "language_code": "ar"
+        },
+        {
+          "language_name": "Dutch",
+          "language_code": "nl"
+        },
+        {
+          "language_name": "Turkish",
+          "language_code": "tr"
+        },
+        {
+          "language_name": "Polish",
+          "language_code": "pl"
+        },
+        {
+          "language_name": "Korean",
+          "language_code": "ko"
+        }
+      ]
+    }
+  ]
+}

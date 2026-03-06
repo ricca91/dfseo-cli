@@ -1,0 +1,101 @@
+{
+  "version": "3.20191202",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.1987 sec",
+  "cost": 0.0015,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "87654321-4321-4321-4321-210987654321",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.1987 sec",
+      "cost": 0.0015,
+      "result_count": 50,
+      "path": [
+        "v3",
+        "serp",
+        "bing",
+        "organic",
+        "live",
+        "advanced"
+      ],
+      "data": {
+        "api": "serp",
+        "function": "live",
+        "se": "bing",
+        "keyword": "email hosting provider",
+        "location_name": "United States",
+        "language_name": "English",
+        "device": "desktop"
+      },
+      "result": [
+        {
+          "keyword": "email hosting provider",
+          "type": "organic",
+          "se_domain": "bing.com",
+          "location": "United States",
+          "language": "English",
+          "check_url": "https://www.bing.com/search?q=email+hosting+provider&count=50",
+          "datetime": "2026-03-06 14:30:00 +00:00",
+          "spell": null,
+          "item_types": [
+            "organic",
+            "related_searches"
+          ],
+          "se_results_count": 45000000,
+          "items_count": 52,
+          "items": [
+            {
+              "type": "organic",
+              "rank_group": 1,
+              "rank_absolute": 1,
+              "url": "https://www.microsoft.com/microsoft-365/business/email-hosting",
+              "domain": "microsoft.com",
+              "title": "Microsoft 365 Business Email - Professional Email Hosting",
+              "description": "Get business-class email hosting with Microsoft 365. Includes Outlook, calendar, and 50GB mailbox per user."
+            },
+            {
+              "type": "organic",
+              "rank_group": 2,
+              "rank_absolute": 2,
+              "url": "https://www.google.com/business/email/",
+              "domain": "google.com",
+              "title": "Google Workspace - Business Email & Collaboration Tools",
+              "description": "Professional business email with Gmail, cloud storage, Docs, Sheets, and more. Try it free for 14 days."
+            },
+            {
+              "type": "organic",
+              "rank_group": 3,
+              "rank_absolute": 3,
+              "url": "https://www.example.com/email-hosting",
+              "domain": "example.com",
+              "title": "Best Email Hosting Provider 2026 - Compare Top Services",
+              "description": "Compare the top email hosting providers for 2026. Find the best business email solutions with secure, reliable service."
+            },
+            {
+              "type": "organic",
+              "rank_group": 4,
+              "rank_absolute": 4,
+              "url": "https://www.zoho.com/mail/",
+              "domain": "zoho.com",
+              "title": "Zoho Mail - Secure Business Email Hosting",
+              "description": "Secure business email hosting with custom domains. Ad-free, privacy-focused email for professionals."
+            },
+            {
+              "type": "organic",
+              "rank_group": 5,
+              "rank_absolute": 5,
+              "url": "https://www.rackspace.com/email-hosting",
+              "domain": "rackspace.com",
+              "title": "Rackspace Email Hosting - Business Email Solutions",
+              "description": "Enterprise-grade email hosting with 24/7 support. Microsoft Exchange and Office 365 available."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

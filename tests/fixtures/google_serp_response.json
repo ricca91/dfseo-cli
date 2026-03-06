@@ -1,0 +1,206 @@
+{
+  "version": "3.20191202",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.2345 sec",
+  "cost": 0.002,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "12345678-1234-1234-1234-123456789012",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.2345 sec",
+      "cost": 0.002,
+      "result_count": 100,
+      "path": [
+        "v3",
+        "serp",
+        "google",
+        "organic",
+        "live",
+        "advanced"
+      ],
+      "data": {
+        "api": "serp",
+        "function": "live",
+        "se": "google",
+        "keyword": "email hosting provider",
+        "location_name": "Italy",
+        "language_name": "Italian",
+        "device": "desktop",
+        "os": "windows"
+      },
+      "result": [
+        {
+          "keyword": "email hosting provider",
+          "type": "organic",
+          "se_domain": "google.it",
+          "location": "Italy",
+          "language": "Italian",
+          "check_url": "https://www.google.it/search?q=email+hosting+provider&num=100&hl=it&gl=it",
+          "datetime": "2026-03-06 14:30:00 +00:00",
+          "spell": null,
+          "item_types": [
+            "organic",
+            "featured_snippet",
+            "people_also_ask",
+            "related_searches"
+          ],
+          "se_results_count": 125000000,
+          "items_count": 103,
+          "items": [
+            {
+              "type": "featured_snippet",
+              "rank_group": 1,
+              "rank_absolute": 1,
+              "position": "left",
+              "xpath": "/html[1]/body[1]/div[1]/div[2]/div[1]",
+              "text": "An email hosting service is a service that operates email servers. Email hosting services usually offer premium email as opposed to advertisement-supported free email or free webmail.",
+              "source": {
+                "type": "source",
+                "title": "Wikipedia",
+                "url": "https://en.wikipedia.org/wiki/Email_hosting_service",
+                "domain": "en.wikipedia.org"
+              }
+            },
+            {
+              "type": "organic",
+              "rank_group": 1,
+              "rank_absolute": 2,
+              "url": "https://www.example.com/email-hosting",
+              "domain": "example.com",
+              "title": "Best Email Hosting Provider 2026 - Compare Top Services",
+              "description": "Compare the top email hosting providers for 2026. Find the best business email solutions with secure, reliable service. Free migration included.",
+              "breadcrumb": "example.com › email › hosting",
+              "is_image": false,
+              "is_video": false,
+              "is_featured_snippet": false,
+              "is_malicious": false
+            },
+            {
+              "type": "organic",
+              "rank_group": 2,
+              "rank_absolute": 3,
+              "url": "https://www.provider.com/business-email",
+              "domain": "provider.com",
+              "title": "Email Hosting for Business - Professional Email Solutions",
+              "description": "Professional email hosting for businesses of all sizes. Custom domains, spam protection, and 24/7 support. Start your free trial today.",
+              "breadcrumb": "provider.com › business",
+              "is_image": false,
+              "is_video": false,
+              "is_featured_snippet": false,
+              "is_malicious": false
+            },
+            {
+              "type": "organic",
+              "rank_group": 3,
+              "rank_absolute": 4,
+              "url": "https://www.hosting.it/email-professionali",
+              "domain": "hosting.it",
+              "title": "Hosting Email Professionale - Servizi Email per Aziende",
+              "description": "Servizi di hosting email professionale per aziende. Caselle email sicure, antivirus e antispam. Supporto tecnico in italiano.",
+              "breadcrumb": "hosting.it › email",
+              "is_image": false,
+              "is_video": false,
+              "is_featured_snippet": false,
+              "is_malicious": false
+            },
+            {
+              "type": "people_also_ask",
+              "rank_group": 1,
+              "rank_absolute": 5,
+              "position": "left",
+              "xpath": "/html[1]/body[1]/div[1]/div[3]/div[1]",
+              "items": [
+                {
+                  "type": "people_also_ask_element",
+                  "question": "What is the best email hosting for business?",
+                  "answer": "The best email hosting for business depends on your needs. Popular options include Google Workspace, Microsoft 365, and Zoho Mail."
+                },
+                {
+                  "type": "people_also_ask_element",
+                  "question": "How much does email hosting cost?",
+                  "answer": "Email hosting typically costs between $1 and $10 per user per month, depending on features and storage."
+                },
+                {
+                  "type": "people_also_ask_element",
+                  "question": "What is email hosting service?",
+                  "answer": "An email hosting service is a service that operates email servers and provides email accounts for businesses and individuals."
+                }
+              ]
+            },
+            {
+              "type": "local_pack",
+              "rank_group": 1,
+              "rank_absolute": 6,
+              "position": "left",
+              "xpath": "/html[1]/body[1]/div[1]/div[4]/div[1]",
+              "title": "Email hosting services near Italy",
+              "items": [
+                {
+                  "type": "local_pack_element",
+                  "title": "Local Email Solutions Roma",
+                  "description": "Professional email hosting services"
+                }
+              ]
+            },
+            {
+              "type": "organic",
+              "rank_group": 4,
+              "rank_absolute": 7,
+              "url": "https://www.google.com/business/email/",
+              "domain": "google.com",
+              "title": "Google Workspace - Business Email & Collaboration Tools",
+              "description": "Professional business email with Gmail, cloud storage, Docs, Sheets, and more. Try it free for 14 days.",
+              "breadcrumb": "google.com › workspace",
+              "is_image": false,
+              "is_video": false,
+              "is_featured_snippet": false,
+              "is_malicious": false
+            },
+            {
+              "type": "organic",
+              "rank_group": 5,
+              "rank_absolute": 8,
+              "url": "https://www.microsoft.com/microsoft-365/business/email-hosting",
+              "domain": "microsoft.com",
+              "title": "Microsoft 365 Business Email - Professional Email Hosting",
+              "description": "Get business-class email hosting with Microsoft 365. Includes Outlook, calendar, and 50GB mailbox per user.",
+              "breadcrumb": "microsoft.com › business",
+              "is_image": false,
+              "is_video": false,
+              "is_featured_snippet": false,
+              "is_malicious": false
+            },
+            {
+              "type": "videos",
+              "rank_group": 1,
+              "rank_absolute": 9,
+              "position": "left",
+              "xpath": "/html[1]/body[1]/div[1]/div[6]/div[1]",
+              "title": "Videos about email hosting",
+              "items": [
+                {
+                  "type": "video_element",
+                  "url": "https://www.youtube.com/watch?v=example123",
+                  "title": "How to Choose the Best Email Hosting Provider",
+                  "source": "TechReview Channel"
+                }
+              ]
+            },
+            {
+              "type": "images",
+              "rank_group": 1,
+              "rank_absolute": 10,
+              "position": "left",
+              "xpath": "/html[1]/body[1]/div[1]/div[5]/div[1]",
+              "title": "Email hosting provider images"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

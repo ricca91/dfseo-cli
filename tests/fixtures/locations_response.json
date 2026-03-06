@@ -1,0 +1,136 @@
+{
+  "version": "3.20191202",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.0456 sec",
+  "cost": 0,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "loc1234-loc-1234-loc-1234loc5678",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.0456 sec",
+      "cost": 0,
+      "result_count": 2840,
+      "path": [
+        "v3",
+        "serp",
+        "google",
+        "locations"
+      ],
+      "data": {
+        "api": "serp",
+        "function": "locations"
+      },
+      "result": [
+        {
+          "location_code": 2840,
+          "location_name": "United States",
+          "location_code_parent": null,
+          "country_iso_code": "US",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2826,
+          "location_name": "United Kingdom",
+          "location_code_parent": null,
+          "country_iso_code": "GB",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2380,
+          "location_name": "Italy",
+          "location_code_parent": null,
+          "country_iso_code": "IT",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2276,
+          "location_name": "Germany",
+          "location_code_parent": null,
+          "country_iso_code": "DE",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2250,
+          "location_name": "France",
+          "location_code_parent": null,
+          "country_iso_code": "FR",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2392,
+          "location_name": "Japan",
+          "location_code_parent": null,
+          "country_iso_code": "JP",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2076,
+          "location_name": "Brazil",
+          "location_code_parent": null,
+          "country_iso_code": "BR",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2156,
+          "location_name": "China",
+          "location_code_parent": null,
+          "country_iso_code": "CN",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2032,
+          "location_name": "Argentina",
+          "location_code_parent": null,
+          "country_iso_code": "AR",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2036,
+          "location_name": "Australia",
+          "location_code_parent": null,
+          "country_iso_code": "AU",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2112,
+          "location_name": "Belarus",
+          "location_code_parent": null,
+          "country_iso_code": "BY",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2056,
+          "location_name": "Belgium",
+          "location_code_parent": null,
+          "country_iso_code": "BE",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2100,
+          "location_name": "Bulgaria",
+          "location_code_parent": null,
+          "country_iso_code": "BG",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2124,
+          "location_name": "Canada",
+          "location_code_parent": null,
+          "country_iso_code": "CA",
+          "location_type": "Country"
+        },
+        {
+          "location_code": 2152,
+          "location_name": "Chile",
+          "location_code_parent": null,
+          "country_iso_code": "CL",
+          "location_type": "Country"
+        }
+      ]
+    }
+  ]
+}
