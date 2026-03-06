@@ -336,6 +336,147 @@ dfseo keywords ads-suggestions "email hosting" "smtp" \
   --limit 100
 ```
 
+## Site Audit Commands
+
+### Site Audit (Full Crawl)
+
+Run a complete SEO audit on any domain. Automatically uses Instant Pages for single URLs.
+
+```bash
+# Full site audit (crawls up to 100 pages)
+dfseo site audit "example.com" --max-pages 100
+
+# Quick single-page check (uses Instant Pages API)
+dfseo site audit "https://example.com/page" --max-pages 1
+
+# With JavaScript execution and resource loading
+dfseo site audit "example.com" --enable-javascript --load-resources
+```
+
+### Site Crawl (Non-blocking)
+
+Start a crawl and get a task ID for later retrieval.
+
+```bash
+# Start crawl, get task_id
+dfseo site crawl "example.com" --max-pages 500
+
+# With all options
+dfseo site crawl "example.com" \
+  --max-pages 200 \
+  --enable-javascript \
+  --load-resources \
+  --start-url "https://example.com/blog"
+```
+
+### Site Summary
+
+Get crawl summary for a task.
+
+```bash
+# Current status
+dfseo site summary "TASK_ID"
+
+# Wait for completion
+dfseo site summary "TASK_ID" --wait --timeout 600
+```
+
+### Site Pages
+
+List crawled pages with metrics.
+
+```bash
+# All pages
+dfseo site pages "TASK_ID"
+
+# Only pages with errors
+dfseo site pages "TASK_ID" --errors-only
+
+# Filter by status code
+dfseo site pages "TASK_ID" --status-code 404
+
+# Sort by score
+dfseo site pages "TASK_ID" --sort onpage_score --order desc
+```
+
+### Site Links
+
+Analyze links (internal, external, broken).
+
+```bash
+# All links
+dfseo site links "TASK_ID"
+
+# Only broken links
+dfseo site links "TASK_ID" --type broken
+
+# Only internal links
+dfseo site links "TASK_ID" --type internal
+```
+
+### Site Duplicates
+
+Find duplicate content.
+
+```bash
+# Duplicate titles
+dfseo site duplicates "TASK_ID" --type title
+
+# Duplicate descriptions
+dfseo site duplicates "TASK_ID" --type description
+
+# Duplicate content (full)
+dfseo site duplicates "TASK_ID" --type content
+```
+
+### Site Redirects
+
+Analyze redirect chains.
+
+```bash
+dfseo site redirects "TASK_ID"
+```
+
+### Site Non-Indexable
+
+Find pages that can't be indexed.
+
+```bash
+dfseo site non-indexable "TASK_ID"
+```
+
+### Site Resources
+
+Analyze resources (images, CSS, JS).
+
+```bash
+# Large images
+dfseo site resources "TASK_ID" --type image --min-size 100kb
+
+# All scripts
+dfseo site resources "TASK_ID" --type script
+```
+
+### Site Lighthouse
+
+Run Lighthouse performance audit.
+
+```bash
+# Full audit
+dfseo site lighthouse "https://example.com" --categories performance,seo
+
+# Wait for results
+dfseo site lighthouse "https://example.com" --wait
+```
+
+### Site Tasks
+
+List all your tasks.
+
+```bash
+dfseo site tasks
+```
+
 ## When to Use
 
 Use `dfseo-cli` when you need:
