@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 import pytest
 import respx
+import typer
 from typer.testing import CliRunner
 
 from dfseo.cli import app

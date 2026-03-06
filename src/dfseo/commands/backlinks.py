@@ -709,6 +709,440 @@ def _format_referring_domains_table(data: dict[str, Any]) -> str:
     return "\n".join(output_lines)
 
 
+@app.command("history")
+def backlinks_history(
+    target: str = typer.Argument(..., help="Target domain"),
+    date_from: str | None = typer.Option(None, "--from", help="Start date (YYYY-MM)"),
+    date_to: str | None = typer.Option(None, "--to", help="End date (YYYY-MM)"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get backlink profile history (data from 2019 onwards)."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        payload: list[dict[str, Any]] = [{"target": target}]
+        if date_from:
+            payload[0]["date_from"] = date_from
+        if date_to:
+            payload[0]["date_to"] = date_to
+
+        data = client._request("POST", "/backlinks/history/live", json_data=payload)
+        client.close()
+
+        result = _parse_history_response(data, target)
+
+        if output_format == "table":
+            print(_format_history_table(result))
+        else:
+            print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_history_response(data: dict[str, Any], target: str) -> dict[str, Any]:
+    """Parse history API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    result: dict[str, Any] = {
+        "target": target,
+        "history": [],
+        "cost": api_response.cost or 0.0,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if api_response.tasks and api_response.tasks[0].result:
+        for item in api_response.tasks[0].result:
+            entry = {
+                "date": item.get("date", ""),
+                "backlinks": item.get("backlinks", 0),
+                "referring_domains": item.get("referring_domains", 0),
+                "referring_main_domains": item.get("referring_main_domains", 0),
+                "rank": item.get("rank", 0),
+            }
+            result["history"].append(entry)
+
+    return result
+
+
+def _format_history_table(data: dict[str, Any]) -> str:
+    """Format history as table."""
+    output_lines = []
+    output_lines.append(f"  Target: {data.get('target', '')}")
+    output_lines.append("")
+
+    for entry in data.get("history", []):
+        date = entry.get("date", "")[:10]
+        rank = entry.get("rank", 0)
+        backlinks = entry.get("backlinks", 0)
+        domains = entry.get("referring_domains", 0)
+        output_lines.append(f"  {date} | Rank: {rank:4} | BL: {backlinks:6} | RD: {domains:4}")
+
+    cost = data.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+    return "\n".join(output_lines)
+
+
+@app.command("competitors")
+def backlinks_competitors(
+    target: str = typer.Argument(..., help="Target domain or URL"),
+    include_subdomains: bool = typer.Option(True, "--include-subdomains/--exclude-subdomains", help="Include subdomains"),
+    sort: str = typer.Option("rank", "--sort", help="Sort by: rank, backlinks, referring_domains"),
+    order: str = typer.Option("desc", "--order", help="Sort order: asc, desc"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Max results"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Find competitors sharing backlink profile with the target."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        payload = [{
+            "target": target,
+            "include_subdomains": include_subdomains,
+            "limit": limit,
+            "order_by": [f"{sort},{order}"],
+        }]
+
+        data = client._request("POST", "/backlinks/competitors/live", json_data=payload)
+        client.close()
+
+        result = _parse_competitors_response(data, target)
+
+        if output_format == "table":
+            print(_format_competitors_table(result))
+        else:
+            print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_competitors_response(data: dict[str, Any], target: str) -> dict[str, Any]:
+    """Parse competitors API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    result: dict[str, Any] = {
+        "target": target,
+        "competitors": [],
+        "total_count": 0,
+        "cost": api_response.cost or 0.0,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        result["total_count"] = task_result.get("total_count", 0)
+
+        for item in task_result.get("items", []):
+            competitor = {
+                "domain": item.get("domain", ""),
+                "avg_position": item.get("avg_position", 0),
+                "backlinks": item.get("backlinks", 0),
+                "referring_domains": item.get("referring_domains", 0),
+                "rank": item.get("rank", 0),
+            }
+            result["competitors"].append(competitor)
+
+    return result
+
+
+def _format_competitors_table(data: dict[str, Any]) -> str:
+    """Format competitors as table."""
+    output_lines = []
+    output_lines.append(f"  Target: {data.get('target', '')} | Competitors: {data.get('total_count', 0)}")
+    output_lines.append("")
+
+    for c in data.get("competitors", [])[:20]:
+        domain = c.get("domain", "")[:35]
+        rank = c.get("rank", 0)
+        backlinks = c.get("backlinks", 0)
+        output_lines.append(f"  {rank:4} | {backlinks:6} | {domain}")
+
+    cost = data.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+    return "\n".join(output_lines)
+
+
+@app.command("gap")
+def backlinks_gap(
+    targets: list[str] = typer.Argument(..., help="Targets: your site first, then competitors"),
+    mode: str = typer.Option("domain", "--mode", help="Intersection mode: domain, page"),
+    exclude: list[str] = typer.Option([], "--exclude", help="Domains to exclude from results"),
+    dofollow_only: bool = typer.Option(False, "--dofollow-only", help="Only dofollow backlinks"),
+    min_rank: int | None = typer.Option(None, "--min-rank", help="Minimum domain rank"),
+    sort: str = typer.Option("rank", "--sort", help="Sort by: rank, backlinks"),
+    order: str = typer.Option("desc", "--order", help="Sort order: asc, desc"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Link gap analysis — find domains linking to competitors but not to you."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    if len(targets) < 2:
+        print_error("At least 2 targets required (your site + competitor)")
+        raise typer.Exit(code=4)
+
+    if len(targets) > 21:
+        print_error("Maximum 20 competitors allowed")
+        raise typer.Exit(code=4)
+
+    if mode not in ("domain", "page"):
+        print_error("Invalid mode. Use 'domain' or 'page'")
+        raise typer.Exit(code=4)
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        # Build numbered targets dict (competitors only, exclude first target)
+        numbered_targets = {}
+        for i, t in enumerate(targets[1:], start=1):
+            numbered_targets[str(i)] = t
+
+        payload: list[dict[str, Any]] = [{
+            "targets": numbered_targets,
+            "exclude_targets": [targets[0]],
+            "limit": limit,
+            "order_by": [f"1.{sort},{order}"],
+        }]
+
+        # Filters use numbered prefixes
+        filters: list[Any] = []
+        if dofollow_only:
+            filters.append(["1.dofollow", "=", True])
+        if min_rank is not None:
+            if filters:
+                filters.append("and")
+            filters.append(["1.domain_from_rank", ">", min_rank])
+        if filters:
+            payload[0]["filters"] = filters
+
+        if exclude:
+            payload[0]["exclude_targets"].extend(exclude)
+
+        endpoint = "/backlinks/domain_intersection/live" if mode == "domain" else "/backlinks/page_intersection/live"
+        data = client._request("POST", endpoint, json_data=payload)
+        client.close()
+
+        result = _parse_gap_response(data, targets)
+
+        if output_format == "table":
+            print(_format_gap_table(result))
+        else:
+            print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_gap_response(data: dict[str, Any], targets: list[str]) -> dict[str, Any]:
+    """Parse gap/intersection API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    result: dict[str, Any] = {
+        "your_site": targets[0],
+        "competitors": targets[1:],
+        "opportunities": [],
+        "total_count": 0,
+        "cost": api_response.cost or 0.0,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        result["total_count"] = task_result.get("total_count", 0)
+
+        for item in task_result.get("items", []):
+            opportunity: dict[str, Any] = {
+                "domain": item.get("domain", ""),
+                "rank": item.get("rank", 0),
+            }
+            # Include per-competitor backlink counts
+            for i in range(1, len(targets)):
+                key = str(i)
+                comp_data = item.get(key, {})
+                if isinstance(comp_data, dict):
+                    opportunity[f"links_to_c{i}"] = comp_data.get("backlinks", 0)
+            result["opportunities"].append(opportunity)
+
+    return result
+
+
+def _format_gap_table(data: dict[str, Any]) -> str:
+    """Format gap analysis as table."""
+    output_lines = []
+    your_site = data.get("your_site", "")
+    competitors = data.get("competitors", [])
+
+    output_lines.append(f"  Your site: {your_site} | Competitors: {', '.join(competitors)}")
+    output_lines.append("  Showing: domains that link to competitors but NOT to you")
+    output_lines.append("")
+
+    for opp in data.get("opportunities", [])[:20]:
+        domain = opp.get("domain", "")[:30]
+        rank = opp.get("rank", 0)
+        links = " | ".join(str(opp.get(f"links_to_c{i}", 0)) for i in range(1, len(competitors) + 1))
+        output_lines.append(f"  {domain:<30} | {rank:4} | {links}")
+
+    total = data.get("total_count", 0)
+    output_lines.append(f"\n  Total link gap opportunities: {total}")
+    cost = data.get("cost", 0)
+    output_lines.append(f"  Cost: ${cost:.4f}")
+    return "\n".join(output_lines)
+
+
+@app.command("pages")
+def backlinks_pages(
+    target: str = typer.Argument(..., help="Target domain or URL"),
+    include_subdomains: bool = typer.Option(True, "--include-subdomains/--exclude-subdomains", help="Include subdomains"),
+    sort: str = typer.Option("backlinks", "--sort", help="Sort by: backlinks, rank, referring_domains"),
+    order: str = typer.Option("desc", "--order", help="Sort order: asc, desc"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Max results"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """List pages with most backlinks for a target."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        payload = [{
+            "target": target,
+            "include_subdomains": include_subdomains,
+            "limit": limit,
+            "order_by": [f"{sort},{order}"],
+        }]
+
+        data = client._request("POST", "/backlinks/domain_pages/live", json_data=payload)
+        client.close()
+
+        result = _parse_pages_response(data, target)
+
+        if output_format == "table":
+            print(_format_pages_table(result))
+        else:
+            print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_pages_response(data: dict[str, Any], target: str) -> dict[str, Any]:
+    """Parse domain pages API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    result: dict[str, Any] = {
+        "target": target,
+        "pages": [],
+        "total_count": 0,
+        "cost": api_response.cost or 0.0,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        result["total_count"] = task_result.get("total_count", 0)
+
+        for item in task_result.get("items", []):
+            page = {
+                "url": item.get("page", ""),
+                "backlinks": item.get("backlinks", 0),
+                "referring_domains": item.get("referring_domains", 0),
+                "rank": item.get("rank", 0),
+            }
+            result["pages"].append(page)
+
+    return result
+
+
+def _format_pages_table(data: dict[str, Any]) -> str:
+    """Format pages as table."""
+    output_lines = []
+    output_lines.append(f"  Target: {data.get('target', '')} | Pages: {data.get('total_count', 0)}")
+    output_lines.append("")
+
+    for p in data.get("pages", [])[:20]:
+        url = p.get("url", "")[:50]
+        backlinks = p.get("backlinks", 0)
+        rank = p.get("rank", 0)
+        output_lines.append(f"  {rank:4} | {backlinks:6} | {url}")
+
+    cost = data.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+    return "\n".join(output_lines)
+
+
 # Create bulk subcommand group
 bulk_app = typer.Typer(help="Bulk operations for multiple targets", no_args_is_help=True)
 app.add_typer(bulk_app, name="bulk")
@@ -822,3 +1256,195 @@ def _format_bulk_ranks_table(data: dict[str, Any]) -> str:
     output_lines.append(f"\n  Cost: ${cost:.4f}")
 
     return "\n".join(output_lines)
+
+
+def _bulk_command(
+    endpoint: str,
+    item_fields: list[str],
+    targets: list[str] | None,
+    from_file: str | None,
+    output_format: str,
+    login: str | None,
+    password: str | None,
+    verbose: bool,
+    extra_payload: dict[str, Any] | None = None,
+) -> None:
+    """Generic bulk command implementation."""
+    try:
+        target_list = load_targets(targets, from_file)
+    except typer.Exit:
+        raise
+
+    if not target_list:
+        print_error("No targets provided")
+        raise typer.Exit(code=4)
+
+    if len(target_list) > 1000:
+        print_error("Maximum 1000 targets allowed")
+        raise typer.Exit(code=4)
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        payload: list[dict[str, Any]] = [{"targets": target_list}]
+        if extra_payload:
+            payload[0].update(extra_payload)
+
+        data = client._request("POST", endpoint, json_data=payload)
+        client.close()
+
+        result = _parse_bulk_generic_response(data, target_list, item_fields)
+
+        if output_format == "table":
+            print(_format_bulk_generic_table(result, item_fields))
+        else:
+            print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_bulk_generic_response(
+    data: dict[str, Any], targets: list[str], fields: list[str]
+) -> dict[str, Any]:
+    """Parse generic bulk API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    result: dict[str, Any] = {
+        "targets_count": len(targets),
+        "results": [],
+        "cost": api_response.cost or 0.0,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        for item in task_result.get("items", []):
+            entry: dict[str, Any] = {"target": item.get("target", "")}
+            for field in fields:
+                entry[field] = item.get(field, 0)
+            result["results"].append(entry)
+
+    return result
+
+
+def _format_bulk_generic_table(data: dict[str, Any], fields: list[str]) -> str:
+    """Format generic bulk results as table."""
+    output_lines = []
+    results = data.get("results", [])
+    output_lines.append(f"  Targets: {data.get('targets_count', 0)} | Results: {len(results)}")
+    output_lines.append("")
+
+    for r in results[:30]:
+        target = r.get("target", "")[:40]
+        values = " | ".join(f"{r.get(f, 0):>6}" for f in fields)
+        output_lines.append(f"  {values} | {target}")
+
+    if len(results) > 30:
+        output_lines.append(f"\n  ... and {len(results) - 30} more results")
+
+    cost = data.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+    return "\n".join(output_lines)
+
+
+@bulk_app.command("backlinks")
+def bulk_backlinks(
+    targets: list[str] = typer.Argument(None, help="Target domains/URLs"),
+    from_file: str = typer.Option(None, "--from-file", "-f", help="Read targets from file"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get backlink counts for multiple targets (up to 1000)."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+    _bulk_command(
+        "/backlinks/bulk_backlinks/live",
+        ["backlinks", "referring_domains", "rank"],
+        targets, from_file, output_format, login, password, verbose,
+    )
+
+
+@bulk_app.command("spam-score")
+def bulk_spam_score(
+    targets: list[str] = typer.Argument(None, help="Target domains/URLs"),
+    from_file: str = typer.Option(None, "--from-file", "-f", help="Read targets from file"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get spam scores for multiple targets (up to 1000)."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+    _bulk_command(
+        "/backlinks/bulk_spam_score/live",
+        ["spam_score", "rank", "backlinks"],
+        targets, from_file, output_format, login, password, verbose,
+    )
+
+
+@bulk_app.command("referring-domains")
+def bulk_referring_domains_cmd(
+    targets: list[str] = typer.Argument(None, help="Target domains/URLs"),
+    from_file: str = typer.Option(None, "--from-file", "-f", help="Read targets from file"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get referring domain counts for multiple targets (up to 1000)."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+    _bulk_command(
+        "/backlinks/bulk_referring_domains/live",
+        ["referring_domains", "referring_main_domains", "rank"],
+        targets, from_file, output_format, login, password, verbose,
+    )
+
+
+@bulk_app.command("new-lost")
+def bulk_new_lost(
+    targets: list[str] = typer.Argument(None, help="Target domains/URLs"),
+    from_file: str = typer.Option(None, "--from-file", "-f", help="Read targets from file"),
+    from_date: str | None = typer.Option(None, "--from-date", help="Start date (YYYY-MM-DD)"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get new and lost backlinks for multiple targets (up to 1000)."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+    extra: dict[str, Any] | None = None
+    if from_date:
+        extra = {"date_from": from_date}
+    _bulk_command(
+        "/backlinks/bulk_new_lost_backlinks/live",
+        ["new_backlinks", "lost_backlinks", "new_referring_domains", "lost_referring_domains"],
+        targets, from_file, output_format, login, password, verbose,
+        extra_payload=extra,
+    )
