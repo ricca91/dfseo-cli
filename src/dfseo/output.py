@@ -18,12 +18,19 @@ def format_output(
 
     Args:
         data: Data to format
-        output_format: Output format (json, json-pretty, table, csv)
+        output_format: Output format (json, json-pretty, table, csv, auto)
         quiet: Suppress non-essential output
 
     Returns:
         Formatted string
     """
+    # Auto-detect: use table for TTY, json for pipes
+    if output_format == "auto" or output_format is None:
+        if sys.stdout.isatty():
+            output_format = "table"
+        else:
+            output_format = "json"
+    
     if output_format == "json":
         return json.dumps(data, separators=(",", ":"))
     elif output_format == "json-pretty":
@@ -62,7 +69,7 @@ def print_error(message: str) -> None:
 
 
 def _format_table(data: dict[str, Any]) -> str:
-    """Format SERP result as table.
+    """Format SERP result as human-readable table.
 
     Args:
         data: SERP result data
@@ -74,66 +81,77 @@ def _format_table(data: dict[str, Any]) -> str:
     output_lines = []
 
     # Header info
-    keyword = data.get("keyword", "")
-    location = data.get("location", "")
-    device = data.get("device", "")
+    keyword = data.get("keyword", "N/A")
+    location = data.get("location", "N/A")
+    language = data.get("language", "N/A")
+    device = data.get("device", "N/A")
     results_count = data.get("results_count", 0)
+    cost = data.get("cost", 0)
 
-    output_lines.append(
-        f"Keyword: {keyword} | Location: {location} | Device: {device} | Results: {results_count}"
-    )
     output_lines.append("")
+    output_lines.append(f"[bold]Query:[/bold] {keyword}")
+    output_lines.append(f"[bold]Location:[/bold] {location} | [bold]Language:[/bold] {language} | [bold]Device:[/bold] {device}")
+    output_lines.append(f"[bold]Results:[/bold] {results_count} | [bold]Cost:[/bold] ${cost:.4f}")
+    output_lines.append("")
+
+    # SERP features summary
+    features = data.get("serp_features", [])
+    if features:
+        output_lines.append(f"[dim]SERP Features: {', '.join(features)}[/dim]")
+        output_lines.append("")
 
     # Organic results table
     organic = data.get("organic_results", [])
     if organic:
-        table = Table(show_header=True, header_style="bold")
-        table.add_column("#", style="cyan", width=4)
-        table.add_column("Domain", style="green", min_width=20)
-        table.add_column("Title", style="white", min_width=30)
-        table.add_column("URL", style="blue", min_width=20)
+        table = Table(show_header=True, header_style="bold blue")
+        table.add_column("#", style="cyan", width=4, justify="right")
+        table.add_column("Domain", style="green", min_width=15, max_width=25)
+        table.add_column("Title / Description", style="white", min_width=40)
 
-        for item in organic[:20]:  # Limit to 20 for table view
+        for item in organic[:15]:  # Limit to 15 for readability
             rank = str(item.get("rank", ""))
-            domain = item.get("domain", "")[:25]
-            title = item.get("title", "")[:40]
-            url = item.get("url", "")[:35]
-            if len(url) == 35:
-                url = url[:32] + "..."
-            table.add_row(rank, domain, title, url)
+            domain = item.get("domain", "")[:23]
+            
+            # Combine title and description
+            title = item.get("title", "")
+            description = item.get("description", "")
+            
+            if description:
+                content = f"[bold]{title[:50]}[/bold]\n[dim]{description[:80]}{'...' if len(description) > 80 else ''}[/dim]"
+            else:
+                content = f"[bold]{title[:80]}[/bold]"
+            
+            table.add_row(rank, domain, content)
 
         # Capture table output
         with console.capture() as capture:
             console.print(table)
         output_lines.append(capture.get())
 
-    # SERP features
-    features = data.get("serp_features", [])
-    if features:
-        output_lines.append(f"\nSERP Features: {', '.join(features)}")
+        if len(organic) > 15:
+            output_lines.append(f"\n[dim]... and {len(organic) - 15} more results[/dim]")
 
     # Featured snippet
     snippet = data.get("featured_snippet")
     if snippet:
-        output_lines.append(f"\nFeatured Snippet:")
-        text = snippet.get("text", "")[:100]
-        if len(snippet.get("text", "")) > 100:
+        output_lines.append("")
+        output_lines.append("[bold yellow]Featured Snippet:[/bold yellow]")
+        text = snippet.get("text", "")[:200]
+        if len(snippet.get("text", "")) > 200:
             text += "..."
         output_lines.append(f"  {text}")
-        output_lines.append(f"  Source: {snippet.get('source_domain', '')}")
+        output_lines.append(f"  [dim]Source: {snippet.get('source_domain', '')}[/dim]")
 
     # People Also Ask
     paa = data.get("people_also_ask", [])
     if paa:
-        output_lines.append(f"\nPeople Also Ask ({len(paa)} items):")
+        output_lines.append("")
+        output_lines.append(f"[bold yellow]People Also Ask ({len(paa)}):[/bold yellow]")
         for item in paa[:5]:
             q = item.get("question", "")
-            output_lines.append(f"  • {q[:60]}{'...' if len(q) > 60 else ''}")
+            output_lines.append(f"  [cyan]•[/cyan] {q[:70]}{'...' if len(q) > 70 else ''}")
 
-    # Cost
-    cost = data.get("cost", 0)
-    output_lines.append(f"\nCost: ${cost:.4f}")
-
+    output_lines.append("")
     return "\n".join(output_lines)
 
 
