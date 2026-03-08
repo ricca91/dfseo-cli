@@ -34,6 +34,27 @@ JS_COST_MULTIPLIER = 2.0  # JavaScript rendering doubles cost
 RESOURCES_COST_MULTIPLIER = 1.5  # Loading resources adds 50% cost
 BROWSER_RENDERING_MULTIPLIER = 3.0  # Full browser rendering triples cost
 
+# Suspicious characters that might indicate injection attempts
+SUSPICIOUS_CHARS = re.compile(r'[<>\"\'\x00-\x1f\x7f]')
+
+def _validate_target(target: str) -> bool:
+    """Validate target domain/URL for suspicious characters."""
+    if not target or len(target) > 2048:
+        return False
+    if SUSPICIOUS_CHARS.search(target):
+        return False
+    return True
+
+def _validate_domain_format(target: str) -> bool:
+    """Basic domain/URL format validation."""
+    # Allow domains (example.com) and URLs (https://example.com)
+    if target.startswith(('http://', 'https://')):
+        # URL format check
+        return bool(re.match(r'^https?://[^/\s]+', target))
+    else:
+        # Domain format check (simple)
+        return bool(re.match(r'^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}', target))
+
 
 def _get_client(
     login: str | None,
@@ -518,6 +539,7 @@ def site_audit(
     wait: bool = typer.Option(True, "--wait/--no-wait", "-w/", help="Wait for completion"),
     timeout: int = typer.Option(300, "--timeout", help="Timeout in seconds"),
     poll_interval: int = typer.Option(10, "--poll-interval", help="Seconds between progress checks"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
     output: str = typer.Option(None, "--output", "-o", help="Output format (json/table)"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -529,6 +551,45 @@ def site_audit(
 
     if output_format not in VALID_OUTPUTS:
         print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    # Validate target input (anti-hallucination) - ALWAYS validate
+    if not _validate_target(target):
+        print_error(f"Invalid target: '{target}'. Contains suspicious characters or is malformed.")
+        raise typer.Exit(code=4)
+    
+    if not _validate_domain_format(target):
+        print_error(f"Invalid target format: '{target}'. Expected domain (example.com) or URL (https://...).")
+        raise typer.Exit(code=4)
+
+    # Handle dry-run mode
+    if dry_run:
+        cost = _calculate_estimated_cost(
+            max_pages=max_pages,
+            enable_javascript=enable_javascript,
+            load_resources=load_resources,
+            enable_browser_rendering=enable_browser_rendering,
+        )
+        result = {
+            "dry_run": True,
+            "target": target,
+            "max_pages": max_pages,
+            "enable_javascript": enable_javascript,
+            "load_resources": load_resources,
+            "enable_browser_rendering": enable_browser_rendering,
+            "estimated_cost": round(cost, 4),
+            "message": f"Estimated cost: ${cost:.4f}. Run without --dry-run to execute.",
+        }
+        print(format_output(result, output_format))
+        return
+
+    # Validate target input (anti-hallucination)
+    if not _validate_target(target):
+        print_error(f"Invalid target: '{target}'. Contains suspicious characters or is malformed.")
+        raise typer.Exit(code=4)
+    
+    if not _validate_domain_format(target):
+        print_error(f"Invalid target format: '{target}'. Expected domain (example.com) or URL (https://...).")
         raise typer.Exit(code=4)
 
     # Check for single page instant mode
