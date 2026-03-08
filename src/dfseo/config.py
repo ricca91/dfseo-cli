@@ -4,7 +4,10 @@ import os
 from pathlib import Path
 from typing import Any
 
-import tomli
+try:
+    import tomllib  # Python 3.11+
+except ImportError:
+    import tomli as tomllib  # Fallback for older Python
 
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "dfseo"
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.toml"
