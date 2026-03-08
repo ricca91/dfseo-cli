@@ -141,6 +141,7 @@ def backlinks_summary(
     include_subdomains: bool = typer.Option(True, "--include-subdomains/--exclude-subdomains", help="Include subdomains"),
     dofollow_only: bool = typer.Option(False, "--dofollow-only", help="Only dofollow backlinks"),
     status: str = typer.Option("all", "--status", help="Status: all, live, new, lost"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -157,6 +158,17 @@ def backlinks_summary(
     if status not in VALID_BACKLINK_STATUS:
         print_error(f"Invalid status: {status}. Valid: {', '.join(VALID_BACKLINK_STATUS)}")
         raise typer.Exit(code=4)
+
+    # Dry-run mode
+    if dry_run:
+        result = {
+            "dry_run": True,
+            "target": target,
+            "estimated_cost": 0.02,
+            "message": "Estimated cost: $0.0200. Run without --dry-run to execute.",
+        }
+        print(format_output(result, output_format))
+        return
 
     try:
         client = _get_client(login, password, verbose)

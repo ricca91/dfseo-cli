@@ -55,6 +55,7 @@ def google(
     device: str = typer.Option(None, "--device", "-d", help="Device type (desktop/mobile)"),
     os: str = typer.Option(None, "--os", help="Operating system (windows/macos/ios/android)"),
     depth: int = typer.Option(100, "--depth", "-n", help="Number of results (max 700)"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include (e.g., 'rank,domain,title')"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format (json/json-pretty/table/csv, default: auto-detect)"),
     features_only: bool = typer.Option(False, "--features-only", help="Show only SERP features"),
     raw: bool = typer.Option(False, "--raw", help="Output raw API response"),
@@ -106,7 +107,9 @@ def google(
                 "timestamp": data["timestamp"],
             }
 
-        print(format_output(data, output_format))
+        # Parse fields filter
+        fields_list = fields.split(",") if fields else None
+        print(format_output(data, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")

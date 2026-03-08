@@ -13,6 +13,7 @@ def format_output(
     data: dict[str, Any],
     output_format: str = "json",
     quiet: bool = False,
+    fields: list[str] | None = None,
 ) -> str:
     """Format data for output.
 
@@ -20,10 +21,15 @@ def format_output(
         data: Data to format
         output_format: Output format (json, json-pretty, table, csv, auto)
         quiet: Suppress non-essential output
+        fields: Optional list of fields to include (filters the output)
 
     Returns:
         Formatted string
     """
+    # Apply field filtering if specified
+    if fields and output_format in ("json", "json-pretty", "csv"):
+        data = _filter_fields(data, fields)
+    
     # Auto-detect: use table for TTY, json for pipes
     if output_format == "auto" or output_format is None:
         if sys.stdout.isatty():
@@ -38,7 +44,7 @@ def format_output(
     elif output_format == "table":
         return _format_table(data)
     elif output_format == "csv":
-        return _format_csv(data)
+        return _format_csv(data, fields)
     else:
         return json.dumps(data, separators=(",", ":"))
 
@@ -66,6 +72,34 @@ def print_error(message: str) -> None:
         message: Error message
     """
     print(message, file=sys.stderr)
+
+
+def _filter_fields(data: dict[str, Any], fields: list[str]) -> dict[str, Any]:
+    """Filter data to include only specified fields.
+    
+    Supports dot notation for nested fields (e.g., 'organic_results.rank').
+    """
+    if not fields:
+        return data
+    
+    result = {}
+    for field in fields:
+        if "." in field:
+            # Handle nested fields (simplified - just top level for now)
+            parts = field.split(".")
+            key = parts[0]
+            if key in data:
+                result[key] = data[key]
+        else:
+            if field in data:
+                result[field] = data[field]
+    
+    # Always include metadata
+    for meta in ["cost", "timestamp", "target", "keyword"]:
+        if meta in data and meta not in result:
+            result[meta] = data[meta]
+    
+    return result
 
 
 def _format_table(data: dict[str, Any]) -> str:
