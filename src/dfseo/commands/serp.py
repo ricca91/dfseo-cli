@@ -56,6 +56,7 @@ def google(
     os: str = typer.Option(None, "--os", help="Operating system (windows/macos/ios/android)"),
     depth: int = typer.Option(100, "--depth", "-n", help="Number of results (max 700)"),
     fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include (e.g., 'rank,domain,title')"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format (json/json-pretty/table/csv, default: auto-detect)"),
     features_only: bool = typer.Option(False, "--features-only", help="Show only SERP features"),
     raw: bool = typer.Option(False, "--raw", help="Output raw API response"),
@@ -85,6 +86,21 @@ def google(
 
     try:
         client = _get_client(login, password, verbose)
+        
+        # Handle raw JSON params
+        if raw_params:
+            import json
+            try:
+                raw_payload = json.loads(raw_params)
+                # Use raw payload directly
+                data = client._request("POST", "/serp/google/organic/live/advanced", json_data=raw_payload)
+                client.close()
+                print(format_output(data, output_format))
+                return
+            except json.JSONDecodeError as e:
+                print_error(f"Invalid JSON in --raw-params: {e}")
+                raise typer.Exit(code=4)
+        
         result = client.serp_google(
             keyword=keyword,
             location_name=location,

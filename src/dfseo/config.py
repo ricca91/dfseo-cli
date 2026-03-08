@@ -19,6 +19,35 @@ DEFAULTS = {
     "output": "json",
 }
 
+# Common valid locations for validation
+COMMON_LOCATIONS = {
+    "United States", "United Kingdom", "Italy", "Germany", "France", 
+    "Spain", "Canada", "Australia", "Netherlands", "Switzerland",
+    "Austria", "Belgium", "Sweden", "Norway", "Denmark", "Finland",
+    "Japan", "South Korea", "China", "India", "Brazil", "Mexico",
+}
+
+# Domain validation regex
+DOMAIN_REGEX = r"^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(:\d+)?$"
+URL_REGEX = r"^https?://[^/\s]+"
+
+
+def validate_location(location: str) -> bool:
+    """Validate location name against common locations."""
+    return location in COMMON_LOCATIONS
+
+
+def validate_domain(domain: str) -> bool:
+    """Validate domain format."""
+    import re
+    return bool(re.match(DOMAIN_REGEX, domain))
+
+
+def validate_url(url: str) -> bool:
+    """Validate URL format."""
+    import re
+    return bool(re.match(URL_REGEX, url))
+
 
 class Config:
     """Configuration manager for dfseo CLI."""
