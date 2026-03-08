@@ -7,12 +7,15 @@ import typer
 from dfseo.client import AuthenticationError, DataForSeoClient, DataForSeoError, RateLimitError
 from dfseo.config import Config
 from dfseo.output import (
+    filter_fields,
     format_compare,
     format_languages,
     format_locations,
     format_output,
     print_error,
 )
+from dfseo.pricing import format_dry_run_output
+from dfseo.validation import validate_keyword, validate_raw_params
 
 serp_app = typer.Typer(help="SERP API commands")
 
@@ -57,6 +60,7 @@ def google(
     depth: int = typer.Option(100, "--depth", "-n", help="Number of results (max 700)"),
     fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include (e.g., 'rank,domain,title')"),
     raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format (json/json-pretty/table/csv, default: auto-detect)"),
     features_only: bool = typer.Option(False, "--features-only", help="Show only SERP features"),
     raw: bool = typer.Option(False, "--raw", help="Output raw API response"),
@@ -74,33 +78,64 @@ def google(
     device = device or defaults["device"]
     output_format = output or defaults["output"]
 
-    # Validate device
+    # Validate inputs
+    try:
+        keyword = validate_keyword(keyword)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
     if device not in VALID_DEVICES:
         print_error(f"Invalid device: {device}. Valid: {', '.join(VALID_DEVICES)}")
         raise typer.Exit(code=4)
 
-    # Validate OS
     if os and os not in VALID_OS:
         print_error(f"Invalid OS: {os}. Valid: {', '.join(VALID_OS)}")
         raise typer.Exit(code=4)
 
+    # Handle raw-params (mutually exclusive with other flags)
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    # Build payload for dry-run or raw-params
+    if raw_payload:
+        payload = raw_payload
+    else:
+        payload = [{
+            "keyword": keyword,
+            "location_name": location,
+            "language_name": language,
+            "device": device,
+            "depth": min(depth, 700),
+        }]
+        if os:
+            payload[0]["os"] = os
+
+    # Dry-run mode
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/serp/google/organic/live/advanced",
+            request_body=payload,
+        )
+        print(format_output(result, output_format))
+        return
+
     try:
         client = _get_client(login, password, verbose)
-        
+
         # Handle raw JSON params
-        if raw_params:
-            import json
-            try:
-                raw_payload = json.loads(raw_params)
-                # Use raw payload directly
-                data = client._request("POST", "/serp/google/organic/live/advanced", json_data=raw_payload)
-                client.close()
-                print(format_output(data, output_format))
-                return
-            except json.JSONDecodeError as e:
-                print_error(f"Invalid JSON in --raw-params: {e}")
-                raise typer.Exit(code=4)
-        
+        if raw_payload:
+            data = client._request("POST", "/serp/google/organic/live/advanced", json_data=raw_payload)
+            client.close()
+            print(format_output(data, output_format))
+            return
+
         result = client.serp_google(
             keyword=keyword,
             location_name=location,
@@ -145,6 +180,9 @@ def bing(
     language: str = typer.Option(None, "--language", "-L", help="Language name"),
     device: str = typer.Option(None, "--device", "-d", help="Device type (desktop/mobile)"),
     depth: int = typer.Option(100, "--depth", "-n", help="Number of results (max 700)"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -158,12 +196,50 @@ def bing(
     device = device or defaults["device"]
     output_format = output or defaults["output"]
 
+    try:
+        keyword = validate_keyword(keyword)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
     if device not in VALID_DEVICES:
         print_error(f"Invalid device: {device}")
         raise typer.Exit(code=4)
 
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = raw_payload or [{
+        "keyword": keyword,
+        "location_name": location,
+        "language_name": language,
+        "device": device,
+        "depth": min(depth, 700),
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/serp/bing/organic/live/advanced",
+            request_body=payload,
+        )
+        print(format_output(result, output_format))
+        return
+
     try:
         client = _get_client(login, password, verbose)
+
+        if raw_payload:
+            data = client._request("POST", "/serp/bing/organic/live/advanced", json_data=raw_payload)
+            client.close()
+            print(format_output(data, output_format))
+            return
+
         result = client.serp_bing(
             keyword=keyword,
             location_name=location,
@@ -173,7 +249,9 @@ def bing(
         )
         client.close()
 
-        print(format_output(result.model_dump(by_alias=True), output_format))
+        data = result.model_dump(by_alias=True)
+        fields_list = fields.split(",") if fields else None
+        print(format_output(data, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
@@ -193,6 +271,9 @@ def youtube(
     language: str = typer.Option(None, "--language", "-L", help="Language name"),
     device: str = typer.Option(None, "--device", "-d", help="Device type"),
     depth: int = typer.Option(100, "--depth", "-n", help="Number of results"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -206,12 +287,50 @@ def youtube(
     device = device or defaults["device"]
     output_format = output or defaults["output"]
 
+    try:
+        keyword = validate_keyword(keyword)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
     if device not in VALID_DEVICES:
         print_error(f"Invalid device: {device}")
         raise typer.Exit(code=4)
 
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = raw_payload or [{
+        "keyword": keyword,
+        "location_name": location,
+        "language_name": language,
+        "device": device,
+        "depth": min(depth, 700),
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/serp/youtube/organic/live/advanced",
+            request_body=payload,
+        )
+        print(format_output(result, output_format))
+        return
+
     try:
         client = _get_client(login, password, verbose)
+
+        if raw_payload:
+            data = client._request("POST", "/serp/youtube/organic/live/advanced", json_data=raw_payload)
+            client.close()
+            print(format_output(data, output_format))
+            return
+
         result = client.serp_youtube(
             keyword=keyword,
             location_name=location,
@@ -221,7 +340,9 @@ def youtube(
         )
         client.close()
 
-        print(format_output(result.model_dump(by_alias=True), output_format))
+        data = result.model_dump(by_alias=True)
+        fields_list = fields.split(",") if fields else None
+        print(format_output(data, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
@@ -288,6 +409,8 @@ def compare(
     language: str = typer.Option(None, "--language", "-L", help="Language name"),
     device: str = typer.Option(None, "--device", "-d", help="Device type"),
     depth: int = typer.Option(50, "--depth", "-n", help="Number of results"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("table", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -300,6 +423,12 @@ def compare(
     language = language or defaults["language_name"]
     device = device or defaults["device"]
 
+    try:
+        keyword = validate_keyword(keyword)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
     engine_list = [e.strip().lower() for e in engines.split(",")]
     valid_engines = ["google", "bing"]
 
@@ -307,6 +436,14 @@ def compare(
         if engine not in valid_engines:
             print_error(f"Invalid engine: {engine}. Valid: {', '.join(valid_engines)}")
             raise typer.Exit(code=4)
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/serp/*/organic/live/advanced",
+            request_body=[{"keyword": keyword, "engines": engine_list}],
+        )
+        print(format_output(result, output))
+        return
 
     try:
         client = _get_client(login, password, verbose)
@@ -335,6 +472,8 @@ def compare(
 
         # Build comparison
         comparison = _build_comparison(keyword, results, engine_list)
+        if fields:
+            comparison = filter_fields(comparison, fields)
         print(format_compare(comparison, output))
 
     except Exception as e:
