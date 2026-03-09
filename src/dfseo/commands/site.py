@@ -15,8 +15,10 @@ import typer
 
 from dfseo.client import AuthenticationError, DataForSeoClient, DataForSeoError
 from dfseo.config import Config
-from dfseo.output import format_output, print_error
+from dfseo.output import filter_fields, format_output, print_error
 from dfseo.polling import poll_lighthouse_task, poll_onpage_task
+from dfseo.pricing import format_dry_run_output
+from dfseo.validation import validate_target
 
 app = typer.Typer(help="Site Audit (On-Page API) commands")
 
@@ -395,6 +397,8 @@ def site_crawl(
     output: str = typer.Option(None, "--output", "-o", help="Output format (json/table)"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ) -> None:
     """Start a site crawl and return task_id (non-blocking)."""
@@ -404,6 +408,23 @@ def site_crawl(
     if output_format not in VALID_OUTPUTS:
         print_error(f"Invalid output format: {output_format}")
         raise typer.Exit(code=4)
+
+    # Validate target input
+    try:
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    # Handle dry-run mode
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/on_page/task_post",
+            request_body=[{"target": target, "max_crawl_pages": max_pages}],
+            params={"max_crawl_pages": max_pages, "enable_javascript": enable_javascript, "load_resources": load_resources, "enable_browser_rendering": enable_browser_rendering},
+        )
+        print(format_output(result, output_format))
+        return
 
     # Print cost warning for expensive options
     _print_cost_warning(max_pages, enable_javascript, load_resources, enable_browser_rendering)
@@ -443,6 +464,10 @@ def site_crawl(
             "status": "crawling",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+        fields_list = fields.split(",") if fields else None
+        if fields_list:
+            result = filter_fields(result, fields_list)
 
         if output_format == "table":
             print(f"  Crawl started: {target}")
@@ -540,6 +565,7 @@ def site_audit(
     timeout: int = typer.Option(300, "--timeout", help="Timeout in seconds"),
     poll_interval: int = typer.Option(10, "--poll-interval", help="Seconds between progress checks"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
     output: str = typer.Option(None, "--output", "-o", help="Output format (json/table)"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -553,44 +579,22 @@ def site_audit(
         print_error(f"Invalid output format: {output_format}")
         raise typer.Exit(code=4)
 
-    # Validate target input (anti-hallucination) - ALWAYS validate
-    if not _validate_target(target):
-        print_error(f"Invalid target: '{target}'. Contains suspicious characters or is malformed.")
-        raise typer.Exit(code=4)
-    
-    if not _validate_domain_format(target):
-        print_error(f"Invalid target format: '{target}'. Expected domain (example.com) or URL (https://...).")
+    # Validate target input
+    try:
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
         raise typer.Exit(code=4)
 
     # Handle dry-run mode
     if dry_run:
-        cost = _calculate_estimated_cost(
-            max_pages=max_pages,
-            enable_javascript=enable_javascript,
-            load_resources=load_resources,
-            enable_browser_rendering=enable_browser_rendering,
+        result = format_dry_run_output(
+            endpoint="POST /v3/on_page/task_post",
+            request_body=[{"target": target, "max_crawl_pages": max_pages}],
+            params={"max_crawl_pages": max_pages, "enable_javascript": enable_javascript, "load_resources": load_resources, "enable_browser_rendering": enable_browser_rendering},
         )
-        result = {
-            "dry_run": True,
-            "target": target,
-            "max_pages": max_pages,
-            "enable_javascript": enable_javascript,
-            "load_resources": load_resources,
-            "enable_browser_rendering": enable_browser_rendering,
-            "estimated_cost": round(cost, 4),
-            "message": f"Estimated cost: ${cost:.4f}. Run without --dry-run to execute.",
-        }
         print(format_output(result, output_format))
         return
-
-    # Validate target input (anti-hallucination)
-    if not _validate_target(target):
-        print_error(f"Invalid target: '{target}'. Contains suspicious characters or is malformed.")
-        raise typer.Exit(code=4)
-    
-    if not _validate_domain_format(target):
-        print_error(f"Invalid target format: '{target}'. Expected domain (example.com) or URL (https://...).")
-        raise typer.Exit(code=4)
 
     # Check for single page instant mode
     if max_pages == 1 and _is_full_url(target):
@@ -609,6 +613,10 @@ def site_audit(
             client.close()
 
             result = _parse_instant_pages_response(data, target)
+
+            fields_list = fields.split(",") if fields else None
+            if fields_list:
+                result = filter_fields(result, fields_list)
 
             if output_format == "table":
                 print(_format_instant_pages_table(result))
@@ -686,6 +694,10 @@ def site_audit(
             client.close()
 
         result = _parse_summary_response(data, task_id)
+
+        fields_list = fields.split(",") if fields else None
+        if fields_list:
+            result = filter_fields(result, fields_list)
 
         if output_format == "table":
             print(_format_summary_table(result))

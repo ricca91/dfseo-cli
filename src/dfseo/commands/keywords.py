@@ -11,7 +11,9 @@ import typer
 
 from dfseo.client import AuthenticationError, DataForSeoClient, DataForSeoError
 from dfseo.config import Config
-from dfseo.output import format_output, print_error
+from dfseo.output import filter_fields, format_output, print_error
+from dfseo.pricing import format_dry_run_output
+from dfseo.validation import validate_keyword, validate_raw_params
 
 keywords_app = typer.Typer(help="Keywords Data API commands")
 
@@ -218,6 +220,9 @@ def keywords_volume(
     language: str = typer.Option(None, "--language", "-L", help="Language name"),
     include_serp_info: bool = typer.Option(False, "--include-serp-info", help="Include SERP data"),
     from_file: str = typer.Option(None, "--from-file", "-f", help="Read keywords from file"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option(None, "--output", "-o", help="Output format (json/table/csv)"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -249,24 +254,58 @@ def keywords_volume(
         raise typer.Exit(code=4)
 
     try:
+        keyword_list = [validate_keyword(k) for k in keyword_list]
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "keywords": keyword_list,
+        "location_name": location,
+        "language_name": language,
+        "include_serp_info": include_serp_info,
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/dataforseo_labs/google/keyword_overview/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
         client = _get_client(login, password, verbose)
 
-        payload = [{
-            "keywords": keyword_list,
-            "location_name": location,
-            "language_name": language,
-            "include_serp_info": include_serp_info,
-        }]
-
-        data = client._request(
-            "POST",
-            "/dataforseo_labs/google/keyword_overview/live",
-            json_data=payload,
-        )
+        if raw_payload:
+            data = client._request(
+                "POST",
+                "/dataforseo_labs/google/keyword_overview/live",
+                json_data=raw_payload,
+            )
+        else:
+            data = client._request(
+                "POST",
+                "/dataforseo_labs/google/keyword_overview/live",
+                json_data=payload,
+            )
 
         result = _parse_volume_response(data, keyword_list, location, language)
         client.close()
 
+        if fields_list:
+            result = filter_fields(result, fields_list)
         formatted = _format_volume_output(result, output_format)
         print(formatted)
 
@@ -443,6 +482,9 @@ def keywords_suggestions(
     include_seed: bool = typer.Option(False, "--include-seed", help="Include seed keyword"),
     sort: str = typer.Option("relevance", "--sort", help="Sort by (relevance/volume/cpc/difficulty)"),
     order: str = typer.Option("desc", "--order", help="Sort order (asc/desc)"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -472,28 +514,62 @@ def keywords_suggestions(
         raise typer.Exit(code=4)
 
     try:
+        keyword = validate_keyword(keyword)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "keyword": keyword,
+        "location_name": location,
+        "language_name": language,
+        "include_seed_keyword": include_seed,
+        "include_serp_info": True,
+        "limit": limit,
+        "filters": build_filters(min_volume, max_volume, min_difficulty, max_difficulty),
+        "order_by": build_order_by(sort, order),
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/dataforseo_labs/google/keyword_suggestions/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
         client = _get_client(login, password, verbose)
 
-        payload = [{
-            "keyword": keyword,
-            "location_name": location,
-            "language_name": language,
-            "include_seed_keyword": include_seed,
-            "include_serp_info": True,
-            "limit": limit,
-            "filters": build_filters(min_volume, max_volume, min_difficulty, max_difficulty),
-            "order_by": build_order_by(sort, order),
-        }]
-
-        data = client._request(
-            "POST",
-            "/dataforseo_labs/google/keyword_suggestions/live",
-            json_data=payload,
-        )
+        if raw_payload:
+            data = client._request(
+                "POST",
+                "/dataforseo_labs/google/keyword_suggestions/live",
+                json_data=raw_payload,
+            )
+        else:
+            data = client._request(
+                "POST",
+                "/dataforseo_labs/google/keyword_suggestions/live",
+                json_data=payload,
+            )
 
         result = _parse_suggestions_response(data, keyword, location, language)
         client.close()
 
+        if fields_list:
+            result = filter_fields(result, fields_list)
         formatted = _format_suggestions_output(result, output_format)
         print(formatted)
 
@@ -645,6 +721,9 @@ def keywords_ideas(
     max_difficulty: int = typer.Option(None, "--max-difficulty", help="Maximum keyword difficulty"),
     sort: str = typer.Option("relevance", "--sort", help="Sort by"),
     order: str = typer.Option("desc", "--order", help="Sort order"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -666,28 +745,62 @@ def keywords_ideas(
         raise typer.Exit(code=4)
 
     try:
+        kw_list = [validate_keyword(k) for k in keywords]
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "keywords": kw_list,
+        "location_name": location,
+        "language_name": language,
+        "include_serp_info": True,
+        "limit": limit,
+        "filters": build_filters(min_volume, max_volume, min_difficulty, max_difficulty),
+        "order_by": build_order_by(sort, order),
+        "closely_variants": False,
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/dataforseo_labs/google/keyword_ideas/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
         client = _get_client(login, password, verbose)
 
-        payload = [{
-            "keywords": keywords,
-            "location_name": location,
-            "language_name": language,
-            "include_serp_info": True,
-            "limit": limit,
-            "filters": build_filters(min_volume, max_volume, min_difficulty, max_difficulty),
-            "order_by": build_order_by(sort, order),
-            "closely_variants": False,
-        }]
+        if raw_payload:
+            data = client._request(
+                "POST",
+                "/dataforseo_labs/google/keyword_ideas/live",
+                json_data=raw_payload,
+            )
+        else:
+            data = client._request(
+                "POST",
+                "/dataforseo_labs/google/keyword_ideas/live",
+                json_data=payload,
+            )
 
-        data = client._request(
-            "POST",
-            "/dataforseo_labs/google/keyword_ideas/live",
-            json_data=payload,
-        )
-
-        result = _parse_suggestions_response(data, ", ".join(keywords), location, language)
+        result = _parse_suggestions_response(data, ", ".join(kw_list), location, language)
         client.close()
 
+        if fields_list:
+            result = filter_fields(result, fields_list)
         formatted = _format_suggestions_output(result, output_format)
         print(formatted)
 
@@ -708,6 +821,9 @@ def keywords_difficulty(
     location: str = typer.Option(None, "--location", "-l", help="Location name"),
     language: str = typer.Option(None, "--language", "-L", help="Language name"),
     from_file: str = typer.Option(None, "--from-file", "-f", help="Read keywords from file"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -738,23 +854,50 @@ def keywords_difficulty(
         raise typer.Exit(code=4)
 
     try:
-        client = _get_client(login, password, verbose)
+        keyword_list = [validate_keyword(k) for k in keyword_list]
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload = [{
-            "keywords": keyword_list,
-            "location_name": location,
-            "language_name": language,
-        }]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "keywords": keyword_list,
+        "location_name": location,
+        "language_name": language,
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/dataforseo_labs/google/bulk_keyword_difficulty/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
 
         data = client._request(
             "POST",
             "/dataforseo_labs/google/bulk_keyword_difficulty/live",
-            json_data=payload,
+            json_data=raw_payload or payload,
         )
 
         result = _parse_difficulty_response(data, keyword_list, location, language)
         client.close()
 
+        if fields_list:
+            result = filter_fields(result, fields_list)
         formatted = _format_difficulty_output(result, output_format)
         print(formatted)
 
@@ -890,6 +1033,9 @@ def keywords_search_intent(
     location: str = typer.Option(None, "--location", "-l", help="Location name"),
     language: str = typer.Option(None, "--language", "-L", help="Language name"),
     from_file: str = typer.Option(None, "--from-file", "-f", help="Read keywords from file"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -920,23 +1066,50 @@ def keywords_search_intent(
         raise typer.Exit(code=4)
 
     try:
-        client = _get_client(login, password, verbose)
+        keyword_list = [validate_keyword(k) for k in keyword_list]
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload = [{
-            "keywords": keyword_list,
-            "location_name": location,
-            "language_name": language,
-        }]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "keywords": keyword_list,
+        "location_name": location,
+        "language_name": language,
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/dataforseo_labs/google/search_intent/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
 
         data = client._request(
             "POST",
             "/dataforseo_labs/google/search_intent/live",
-            json_data=payload,
+            json_data=raw_payload or payload,
         )
 
         result = _parse_search_intent_response(data, keyword_list, location, language)
         client.close()
 
+        if fields_list:
+            result = filter_fields(result, fields_list)
         formatted = _format_search_intent_output(result, output_format)
         print(formatted)
 
@@ -1078,6 +1251,9 @@ def keywords_for_site(
     max_volume: int = typer.Option(None, "--max-volume", help="Maximum search volume"),
     sort: str = typer.Option("relevance", "--sort", help="Sort by"),
     order: str = typer.Option("desc", "--order", help="Sort order"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -1085,6 +1261,7 @@ def keywords_for_site(
 ) -> None:
     """Find keywords relevant for a domain."""
     defaults = _get_defaults()
+    from dfseo.validation import validate_target
 
     location = location or defaults["location_name"]
     language = language or defaults["language_name"]
@@ -1095,27 +1272,54 @@ def keywords_for_site(
         raise typer.Exit(code=4)
 
     try:
-        client = _get_client(login, password, verbose)
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload = [{
-            "target": target,
-            "location_name": location,
-            "language_name": language,
-            "include_serp_info": True,
-            "limit": limit,
-            "filters": build_filters(min_volume, max_volume),
-            "order_by": build_order_by(sort, order),
-        }]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "target": target,
+        "location_name": location,
+        "language_name": language,
+        "include_serp_info": True,
+        "limit": limit,
+        "filters": build_filters(min_volume, max_volume),
+        "order_by": build_order_by(sort, order),
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/dataforseo_labs/google/keywords_for_site/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
 
         data = client._request(
             "POST",
             "/dataforseo_labs/google/keywords_for_site/live",
-            json_data=payload,
+            json_data=raw_payload or payload,
         )
 
         result = _parse_for_site_response(data, target, location, language)
         client.close()
 
+        if fields_list:
+            result = filter_fields(result, fields_list)
         formatted = _format_for_site_output(result, output_format)
         print(formatted)
 
@@ -1267,6 +1471,9 @@ def keywords_ads_volume(
     date_from: str = typer.Option(None, "--date-from", help="Start date (YYYY-MM)"),
     date_to: str = typer.Option(None, "--date-to", help="End date (YYYY-MM)"),
     from_file: str = typer.Option(None, "--from-file", "-f", help="Read keywords from file"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
@@ -1297,31 +1504,55 @@ def keywords_ads_volume(
         raise typer.Exit(code=4)
 
     try:
+        keyword_list = [validate_keyword(k) for k in keyword_list]
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "keywords": keyword_list,
+        "location_name": location,
+        "language_name": language,
+    }]
+    if date_from:
+        payload[0]["date_from"] = date_from
+    if date_to:
+        payload[0]["date_to"] = date_to
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/keywords_data/google_ads/search_volume/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
         client = _get_client(login, password, verbose)
-
-        # Apply Google Ads rate limiting
         _apply_google_ads_rate_limit()
-
-        payload = [{
-            "keywords": keyword_list,
-            "location_name": location,
-            "language_name": language,
-        }]
-
-        if date_from:
-            payload[0]["date_from"] = date_from
-        if date_to:
-            payload[0]["date_to"] = date_to
 
         data = client._request(
             "POST",
             "/keywords_data/google_ads/search_volume/live",
-            json_data=payload,
+            json_data=raw_payload or payload,
         )
 
         result = _parse_ads_volume_response(data, keyword_list, location, language)
         client.close()
 
+        if fields_list:
+            result = filter_fields(result, fields_list)
         formatted = _format_ads_volume_output(result, output_format)
         print(formatted)
 

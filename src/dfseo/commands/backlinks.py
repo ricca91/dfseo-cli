@@ -19,6 +19,8 @@ from dfseo.client import (
 )
 from dfseo.config import Config
 from dfseo.output import format_output, print_error
+from dfseo.pricing import format_dry_run_output
+from dfseo.validation import validate_target, validate_raw_params
 
 app = typer.Typer(
     help="""Backlinks API - Analyze backlink profiles.
@@ -142,6 +144,8 @@ def backlinks_summary(
     dofollow_only: bool = typer.Option(False, "--dofollow-only", help="Only dofollow backlinks"),
     status: str = typer.Option("all", "--status", help="Status: all, live, new, lost"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -159,26 +163,28 @@ def backlinks_summary(
         print_error(f"Invalid status: {status}. Valid: {', '.join(VALID_BACKLINK_STATUS)}")
         raise typer.Exit(code=4)
 
-    # Dry-run mode
-    if dry_run:
-        result = {
-            "dry_run": True,
-            "target": target,
-            "estimated_cost": 0.02,
-            "message": "Estimated cost: $0.0200. Run without --dry-run to execute.",
-        }
-        print(format_output(result, output_format))
-        return
-
     try:
-        client = _get_client(login, password, verbose)
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload = [{
-            "target": target,
-            "include_subdomains": include_subdomains,
-            "backlinks_status_type": status,
-        }]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
 
+    payload = raw_payload or [{
+        "target": target,
+        "include_subdomains": include_subdomains,
+        "backlinks_status_type": status,
+    }]
+
+    if not raw_payload:
         # Use backlinks_filters for summary endpoint
         backlinks_filters = []
         if dofollow_only:
@@ -187,15 +193,29 @@ def backlinks_summary(
         if backlinks_filters:
             payload[0]["backlinks_filters"] = backlinks_filters
 
+    # Dry-run mode
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/backlinks/summary/live",
+            request_body=payload,
+        )
+        fields_list = fields.split(",") if fields else None
+        print(format_output(result, output_format, fields=fields_list))
+        return
+
+    try:
+        client = _get_client(login, password, verbose)
+
         data = client._request("POST", "/backlinks/summary/live", json_data=payload)
         client.close()
 
         result = _parse_summary_response(data, target)
+        fields_list = fields.split(",") if fields else None
 
         if output_format == "table":
             print(_format_summary_table(result))
         else:
-            print(format_output(result, output_format))
+            print(format_output(result, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
@@ -323,6 +343,9 @@ def backlinks_list(
     min_rank: int | None = typer.Option(None, "--min-rank", help="Minimum backlink rank"),
     limit: int = typer.Option(100, "--limit", "-n", help="Max results (max 1000)"),
     offset: int = typer.Option(0, "--offset", help="Offset for pagination"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -345,17 +368,30 @@ def backlinks_list(
         raise typer.Exit(code=4)
 
     try:
-        client = _get_client(login, password, verbose)
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload = [{
-            "target": target,
-            "mode": "as_is",
-            "include_subdomains": include_subdomains,
-            "backlinks_status_type": status,
-            "limit": min(limit, 1000),
-            "offset": offset,
-        }]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
 
+    payload = raw_payload or [{
+        "target": target,
+        "mode": "as_is",
+        "include_subdomains": include_subdomains,
+        "backlinks_status_type": status,
+        "limit": min(limit, 1000),
+        "offset": offset,
+    }]
+
+    if not raw_payload:
         # Use filters (not backlinks_filters) for list endpoint
         filters = _build_filters(
             dofollow_only=dofollow_only,
@@ -368,17 +404,30 @@ def backlinks_list(
         # Add ordering
         payload[0]["order_by"] = _build_order_by(sort, order)
 
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/backlinks/backlinks/live",
+            request_body=payload,
+        )
+        fields_list = fields.split(",") if fields else None
+        print(format_output(result, output_format, fields=fields_list))
+        return
+
+    try:
+        client = _get_client(login, password, verbose)
+
         data = client._request("POST", "/backlinks/backlinks/live", json_data=payload)
         client.close()
 
         result = _parse_backlinks_list_response(data, target)
+        fields_list = fields.split(",") if fields else None
 
         if output_format == "table":
             print(_format_backlinks_list_table(result))
         elif output_format == "csv":
             print(_format_backlinks_list_csv(result))
         else:
-            print(format_output(result, output_format))
+            print(format_output(result, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
@@ -486,6 +535,9 @@ def backlinks_anchors(
     sort: str = typer.Option("backlinks", "--sort", help="Sort by: backlinks, referring_domains"),
     order: str = typer.Option("desc", "--order", help="Sort order: asc, desc"),
     limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -500,14 +552,27 @@ def backlinks_anchors(
         raise typer.Exit(code=4)
 
     try:
-        client = _get_client(login, password, verbose)
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload = [{
-            "target": target,
-            "include_subdomains": include_subdomains,
-            "limit": limit,
-        }]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
 
+    payload = raw_payload or [{
+        "target": target,
+        "include_subdomains": include_subdomains,
+        "limit": limit,
+    }]
+
+    if not raw_payload:
         # Use backlinks_filters for anchors endpoint
         backlinks_filters = []
         if dofollow_only:
@@ -521,15 +586,28 @@ def backlinks_anchors(
 
         payload[0]["order_by"] = [f"{sort},{order}"]
 
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/backlinks/anchors/live",
+            request_body=payload,
+        )
+        fields_list = fields.split(",") if fields else None
+        print(format_output(result, output_format, fields=fields_list))
+        return
+
+    try:
+        client = _get_client(login, password, verbose)
+
         data = client._request("POST", "/backlinks/anchors/live", json_data=payload)
         client.close()
 
         result = _parse_anchors_response(data, target)
+        fields_list = fields.split(",") if fields else None
 
         if output_format == "table":
             print(_format_anchors_table(result))
         else:
-            print(format_output(result, output_format))
+            print(format_output(result, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
@@ -608,6 +686,9 @@ def backlinks_referring_domains(
     sort: str = typer.Option("rank", "--sort", help="Sort by: rank, backlinks"),
     order: str = typer.Option("desc", "--order", help="Sort order"),
     limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -622,14 +703,27 @@ def backlinks_referring_domains(
         raise typer.Exit(code=4)
 
     try:
-        client = _get_client(login, password, verbose)
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload = [{
-            "target": target,
-            "include_subdomains": include_subdomains,
-            "limit": limit,
-        }]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
 
+    payload = raw_payload or [{
+        "target": target,
+        "include_subdomains": include_subdomains,
+        "limit": limit,
+    }]
+
+    if not raw_payload:
         # Use backlinks_filters
         backlinks_filters = []
         if dofollow_only:
@@ -643,15 +737,28 @@ def backlinks_referring_domains(
 
         payload[0]["order_by"] = [f"{sort},{order}"]
 
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/backlinks/referring_domains/live",
+            request_body=payload,
+        )
+        fields_list = fields.split(",") if fields else None
+        print(format_output(result, output_format, fields=fields_list))
+        return
+
+    try:
+        client = _get_client(login, password, verbose)
+
         data = client._request("POST", "/backlinks/referring_domains/live", json_data=payload)
         client.close()
 
         result = _parse_referring_domains_response(data, target)
+        fields_list = fields.split(",") if fields else None
 
         if output_format == "table":
             print(_format_referring_domains_table(result))
         else:
-            print(format_output(result, output_format))
+            print(format_output(result, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
@@ -726,6 +833,9 @@ def backlinks_history(
     target: str = typer.Argument(..., help="Target domain"),
     date_from: str | None = typer.Option(None, "--from", help="Start date (YYYY-MM)"),
     date_to: str | None = typer.Option(None, "--to", help="End date (YYYY-MM)"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -740,23 +850,49 @@ def backlinks_history(
         raise typer.Exit(code=4)
 
     try:
-        client = _get_client(login, password, verbose)
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload: list[dict[str, Any]] = [{"target": target}]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload: list[dict[str, Any]] = raw_payload or [{"target": target}]
+    if not raw_payload:
         if date_from:
             payload[0]["date_from"] = date_from
         if date_to:
             payload[0]["date_to"] = date_to
 
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/backlinks/history/live",
+            request_body=payload,
+        )
+        fields_list = fields.split(",") if fields else None
+        print(format_output(result, output_format, fields=fields_list))
+        return
+
+    try:
+        client = _get_client(login, password, verbose)
+
         data = client._request("POST", "/backlinks/history/live", json_data=payload)
         client.close()
 
         result = _parse_history_response(data, target)
+        fields_list = fields.split(",") if fields else None
 
         if output_format == "table":
             print(_format_history_table(result))
         else:
-            print(format_output(result, output_format))
+            print(format_output(result, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
@@ -821,6 +957,9 @@ def backlinks_competitors(
     sort: str = typer.Option("rank", "--sort", help="Sort by: rank, backlinks, referring_domains"),
     order: str = typer.Option("desc", "--order", help="Sort order: asc, desc"),
     limit: int = typer.Option(50, "--limit", "-n", help="Max results"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -835,24 +974,49 @@ def backlinks_competitors(
         raise typer.Exit(code=4)
 
     try:
-        client = _get_client(login, password, verbose)
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
 
-        payload = [{
-            "target": target,
-            "include_subdomains": include_subdomains,
-            "limit": limit,
-            "order_by": [f"{sort},{order}"],
-        }]
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = raw_payload or [{
+        "target": target,
+        "include_subdomains": include_subdomains,
+        "limit": limit,
+        "order_by": [f"{sort},{order}"],
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/backlinks/competitors/live",
+            request_body=payload,
+        )
+        fields_list = fields.split(",") if fields else None
+        print(format_output(result, output_format, fields=fields_list))
+        return
+
+    try:
+        client = _get_client(login, password, verbose)
 
         data = client._request("POST", "/backlinks/competitors/live", json_data=payload)
         client.close()
 
         result = _parse_competitors_response(data, target)
+        fields_list = fields.split(",") if fields else None
 
         if output_format == "table":
             print(_format_competitors_table(result))
         else:
-            print(format_output(result, output_format))
+            print(format_output(result, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
@@ -923,6 +1087,9 @@ def backlinks_gap(
     sort: str = typer.Option("rank", "--sort", help="Sort by: rank, backlinks"),
     order: str = typer.Option("desc", "--order", help="Sort order: asc, desc"),
     limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
     output: str = typer.Option("auto", "--output", "-o", help="Output format"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -948,9 +1115,28 @@ def backlinks_gap(
         print_error("Invalid mode. Use 'domain' or 'page'")
         raise typer.Exit(code=4)
 
-    try:
-        client = _get_client(login, password, verbose)
+    # Validate each target
+    validated_targets = []
+    for t in targets:
+        try:
+            validated_targets.append(validate_target(t))
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    targets = validated_targets
 
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    if raw_payload:
+        payload = raw_payload
+    else:
         # Build numbered targets dict (competitors only, exclude first target)
         numbered_targets = {}
         for i, t in enumerate(targets[1:], start=1):
@@ -977,16 +1163,29 @@ def backlinks_gap(
         if exclude:
             payload[0]["exclude_targets"].extend(exclude)
 
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/backlinks/domain_intersection/live",
+            request_body=payload,
+        )
+        fields_list = fields.split(",") if fields else None
+        print(format_output(result, output_format, fields=fields_list))
+        return
+
+    try:
+        client = _get_client(login, password, verbose)
+
         endpoint = "/backlinks/domain_intersection/live" if mode == "domain" else "/backlinks/page_intersection/live"
         data = client._request("POST", endpoint, json_data=payload)
         client.close()
 
         result = _parse_gap_response(data, targets)
+        fields_list = fields.split(",") if fields else None
 
         if output_format == "table":
             print(_format_gap_table(result))
         else:
-            print(format_output(result, output_format))
+            print(format_output(result, output_format, fields=fields_list))
 
     except AuthenticationError as e:
         print_error(f"Authentication error: {e}")
