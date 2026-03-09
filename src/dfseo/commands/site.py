@@ -15,8 +15,10 @@ import typer
 
 from dfseo.client import AuthenticationError, DataForSeoClient, DataForSeoError
 from dfseo.config import Config
-from dfseo.output import format_output, print_error
+from dfseo.output import filter_fields, format_output, print_error
 from dfseo.polling import poll_lighthouse_task, poll_onpage_task
+from dfseo.pricing import format_dry_run_output
+from dfseo.validation import validate_target
 
 app = typer.Typer(help="Site Audit (On-Page API) commands")
 
@@ -33,6 +35,27 @@ BASE_COST_PER_PAGE = 0.001  # Base cost per page crawled
 JS_COST_MULTIPLIER = 2.0  # JavaScript rendering doubles cost
 RESOURCES_COST_MULTIPLIER = 1.5  # Loading resources adds 50% cost
 BROWSER_RENDERING_MULTIPLIER = 3.0  # Full browser rendering triples cost
+
+# Suspicious characters that might indicate injection attempts
+SUSPICIOUS_CHARS = re.compile(r'[<>\"\'\x00-\x1f\x7f]')
+
+def _validate_target(target: str) -> bool:
+    """Validate target domain/URL for suspicious characters."""
+    if not target or len(target) > 2048:
+        return False
+    if SUSPICIOUS_CHARS.search(target):
+        return False
+    return True
+
+def _validate_domain_format(target: str) -> bool:
+    """Basic domain/URL format validation."""
+    # Allow domains (example.com) and URLs (https://example.com)
+    if target.startswith(('http://', 'https://')):
+        # URL format check
+        return bool(re.match(r'^https?://[^/\s]+', target))
+    else:
+        # Domain format check (simple)
+        return bool(re.match(r'^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}', target))
 
 
 def _get_client(
@@ -374,6 +397,8 @@ def site_crawl(
     output: str = typer.Option(None, "--output", "-o", help="Output format (json/table)"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ) -> None:
     """Start a site crawl and return task_id (non-blocking)."""
@@ -383,6 +408,23 @@ def site_crawl(
     if output_format not in VALID_OUTPUTS:
         print_error(f"Invalid output format: {output_format}")
         raise typer.Exit(code=4)
+
+    # Validate target input
+    try:
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    # Handle dry-run mode
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/on_page/task_post",
+            request_body=[{"target": target, "max_crawl_pages": max_pages}],
+            params={"max_crawl_pages": max_pages, "enable_javascript": enable_javascript, "load_resources": load_resources, "enable_browser_rendering": enable_browser_rendering},
+        )
+        print(format_output(result, output_format))
+        return
 
     # Print cost warning for expensive options
     _print_cost_warning(max_pages, enable_javascript, load_resources, enable_browser_rendering)
@@ -422,6 +464,10 @@ def site_crawl(
             "status": "crawling",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+        fields_list = fields.split(",") if fields else None
+        if fields_list:
+            result = filter_fields(result, fields_list)
 
         if output_format == "table":
             print(f"  Crawl started: {target}")
@@ -518,6 +564,8 @@ def site_audit(
     wait: bool = typer.Option(True, "--wait/--no-wait", "-w/", help="Wait for completion"),
     timeout: int = typer.Option(300, "--timeout", help="Timeout in seconds"),
     poll_interval: int = typer.Option(10, "--poll-interval", help="Seconds between progress checks"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show estimated cost without executing"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
     output: str = typer.Option(None, "--output", "-o", help="Output format (json/table)"),
     login: str = typer.Option(None, "--login", help="DataForSEO login"),
     password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
@@ -530,6 +578,23 @@ def site_audit(
     if output_format not in VALID_OUTPUTS:
         print_error(f"Invalid output format: {output_format}")
         raise typer.Exit(code=4)
+
+    # Validate target input
+    try:
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    # Handle dry-run mode
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/on_page/task_post",
+            request_body=[{"target": target, "max_crawl_pages": max_pages}],
+            params={"max_crawl_pages": max_pages, "enable_javascript": enable_javascript, "load_resources": load_resources, "enable_browser_rendering": enable_browser_rendering},
+        )
+        print(format_output(result, output_format))
+        return
 
     # Check for single page instant mode
     if max_pages == 1 and _is_full_url(target):
@@ -548,6 +613,10 @@ def site_audit(
             client.close()
 
             result = _parse_instant_pages_response(data, target)
+
+            fields_list = fields.split(",") if fields else None
+            if fields_list:
+                result = filter_fields(result, fields_list)
 
             if output_format == "table":
                 print(_format_instant_pages_table(result))
@@ -625,6 +694,10 @@ def site_audit(
             client.close()
 
         result = _parse_summary_response(data, task_id)
+
+        fields_list = fields.split(",") if fields else None
+        if fields_list:
+            result = filter_fields(result, fields_list)
 
         if output_format == "table":
             print(_format_summary_table(result))

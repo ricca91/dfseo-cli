@@ -8,6 +8,7 @@ import typer
 
 from dfseo.commands.auth import auth_app
 from dfseo.commands.config import config_app
+from dfseo.commands.describe import app as describe_app
 from dfseo.commands.keywords import keywords_app
 from dfseo.commands.serp import serp_app
 from dfseo.commands.site import app as site_app
@@ -23,6 +24,7 @@ app = typer.Typer(
 # Register subcommands
 app.add_typer(auth_app, name="auth")
 app.add_typer(config_app, name="config")
+app.add_typer(describe_app, name="describe")
 app.add_typer(keywords_app, name="keywords")
 app.add_typer(serp_app, name="serp")
 app.add_typer(site_app, name="site")

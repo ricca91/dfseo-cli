@@ -13,6 +13,7 @@ def format_output(
     data: dict[str, Any],
     output_format: str = "json",
     quiet: bool = False,
+    fields: list[str] | None = None,
 ) -> str:
     """Format data for output.
 
@@ -20,10 +21,15 @@ def format_output(
         data: Data to format
         output_format: Output format (json, json-pretty, table, csv, auto)
         quiet: Suppress non-essential output
+        fields: Optional list of fields to include (filters the output)
 
     Returns:
         Formatted string
     """
+    # Apply field filtering if specified
+    if fields:
+        data = filter_fields(data, fields)
+    
     # Auto-detect: use table for TTY, json for pipes
     if output_format == "auto" or output_format is None:
         if sys.stdout.isatty():
@@ -38,7 +44,7 @@ def format_output(
     elif output_format == "table":
         return _format_table(data)
     elif output_format == "csv":
-        return _format_csv(data)
+        return _format_csv(data, fields)
     else:
         return json.dumps(data, separators=(",", ":"))
 
@@ -66,6 +72,58 @@ def print_error(message: str) -> None:
         message: Error message
     """
     print(message, file=sys.stderr)
+
+
+def filter_fields(data: Any, fields: str | list[str] | None) -> Any:
+    """Filter data to include only specified fields.
+
+    Supports dot notation for nested fields (e.g., 'organic_results.domain').
+    When a dotted field targets items inside a list, the child filter
+    is applied to each element of the list.
+
+    Args:
+        data: Data to filter (dict or list)
+        fields: Comma-separated string or list of field names
+
+    Returns:
+        Filtered data
+    """
+    if not fields:
+        return data
+
+    if isinstance(fields, str):
+        fields = [f.strip() for f in fields.split(",")]
+
+    if isinstance(data, list):
+        return [filter_fields(item, fields) for item in data]
+
+    if not isinstance(data, dict):
+        return data
+
+    result: dict[str, Any] = {}
+
+    # Group fields by top-level key for nested handling
+    nested: dict[str, list[str]] = {}
+    for field in fields:
+        if "." in field:
+            parent, child = field.split(".", 1)
+            nested.setdefault(parent, []).append(child)
+        elif field in data:
+            result[field] = data[field]
+
+    # Process nested fields
+    for parent, children in nested.items():
+        if parent not in data:
+            continue
+        value = data[parent]
+        if isinstance(value, list):
+            result[parent] = [filter_fields(item, children) for item in value]
+        elif isinstance(value, dict):
+            result[parent] = filter_fields(value, children)
+        else:
+            result[parent] = value
+
+    return result
 
 
 def _format_table(data: dict[str, Any]) -> str:
@@ -155,30 +213,47 @@ def _format_table(data: dict[str, Any]) -> str:
     return "\n".join(output_lines)
 
 
-def _format_csv(data: dict[str, Any]) -> str:
-    """Format organic results as CSV.
+def _format_csv(data: dict[str, Any], fields: list[str] | None = None) -> str:
+    """Format results as CSV.
+
+    If data contains 'organic_results' or similar list, uses that.
+    Otherwise treats data itself as a single row.
 
     Args:
-        data: SERP result data
+        data: Result data
+        fields: Optional list of fields (used as column names)
 
     Returns:
         CSV string
     """
     import io
 
-    organic = data.get("organic_results", [])
-    if not organic:
+    # Find the main list to serialize
+    rows = None
+    for key in ("organic_results", "keywords", "backlinks", "items", "results", "pages", "domains"):
+        if key in data and isinstance(data[key], list):
+            rows = data[key]
+            break
+
+    if rows is None:
+        # Treat flat dict as single row
+        rows = [data]
+
+    if not rows:
         return ""
 
     output = io.StringIO()
-    writer = csv.DictWriter(
-        output,
-        fieldnames=["rank", "rank_group", "domain", "url", "title", "description"],
-        extrasaction="ignore",
-    )
+    if fields:
+        fieldnames = fields
+    else:
+        # Use keys from first item
+        fieldnames = list(rows[0].keys()) if rows else []
+
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
-    for item in organic:
-        writer.writerow(item)
+    for item in rows:
+        if isinstance(item, dict):
+            writer.writerow(item)
 
     return output.getvalue()
 
