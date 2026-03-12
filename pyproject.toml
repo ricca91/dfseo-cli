@@ -9,7 +9,7 @@ description = "DataForSEO CLI for AI agents — SERP, Keywords, Site Audit, Back
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Ricc", email = "riccardo@example.com"}
+    {name = "Ricc", email = "riccsartori@gmail.com"}
 ]
 keywords = [
     "seo", "cli", "dataforseo", "serp", "keywords", "backlinks",
