@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dfseo-cli — SEO Data from Your Terminal</title>
+  <meta name="description" content="Open source CLI for DataForSEO APIs. 43+ commands for SERP analysis, keyword research, site audits, and backlink analysis. Built for AI agents." />
+  <meta name="keywords" content="seo cli, dataforseo, serp api, keyword research tool, site audit cli, backlink analysis, ai agent tools" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="dfseo-cli — SEO Data from Your Terminal" />
+  <meta property="og:description" content="43+ commands for SERP, Keywords, Site Audit, and Backlinks. Built for AI agents and humans who prefer the command line." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://dfseo.vercel.app" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="dfseo-cli — SEO Data from Your Terminal" />
+  <meta name="twitter:description" content="Open source CLI wrapping DataForSEO APIs. pip install dfseo" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: '#0a0a0f',
+            surface: '#111118',
+            border: 'rgba(255,255,255,0.07)',
+            accent: '#4ade80',
+            'accent-dim': 'rgba(74,222,128,0.15)',
+            text: '#e4e4e7',
+            muted: '#71717a',
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { background-color: #0a0a0f; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Terminal cursor blink */
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+    .cursor { display: inline-block; width: 0.6ch; height: 1.1em; background: #4ade80; vertical-align: text-bottom; animation: blink 1s step-end infinite; }
+
+    /* Fade in on scroll */
+    .fade-in { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* Code copy button */
+    .code-block { position: relative; }
+    .copy-btn { position: absolute; top: 0.75rem; right: 0.75rem; font-size: 0.75rem; padding: 0.25rem 0.6rem; border-radius: 4px; background: rgba(255,255,255,0.08); color: #a1a1aa; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; }
+    .copy-btn:hover { background: rgba(74,222,128,0.15); color: #4ade80; border-color: rgba(74,222,128,0.3); }
+    .copy-btn.copied { background: rgba(74,222,128,0.2); color: #4ade80; }
+
+    /* Terminal window */
+    .terminal { background: #0d0d14; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .terminal-header { background: #1a1a24; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ff5f57; } .dot-yellow { background: #ffbd2e; } .dot-green { background: #28ca41; }
+    .terminal-body { padding: 1.25rem 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; min-height: 260px; }
+
+    /* Syntax highlight */
+    .cmd-prompt { color: #4ade80; } .cmd-text { color: #e4e4e7; }
+    .json-key { color: #7dd3fc; } .json-str { color: #86efac; } .json-num { color: #fbbf24; } .json-bool { color: #f9a8d4; }
+
+    /* Glow on hover for code blocks */
+    .code-card:hover { box-shadow: 0 0 0 1px rgba(74,222,128,0.2), 0 8px 30px rgba(74,222,128,0.05); }
+
+    /* Command badge */
+    .cmd-badge { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; padding: 0.15rem 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #a1a1aa; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+    /* Mobile code scroll */
+    pre { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  </style>
+</head>
+<body class="antialiased">
+
+  <!-- NAV -->
+  <nav class="border-b border-white/5 bg-bg/80 backdrop-blur-sm sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+      <span class="font-mono text-accent font-bold text-sm">dfseo-cli</span>
+      <div class="flex items-center gap-6 text-sm text-muted">
+        <a href="#commands" class="hover:text-text transition-colors">Commands</a>
+        <a href="#quickstart" class="hover:text-text transition-colors">Quick Start</a>
+        <a href="https://github.com/ricca91/dfseo-cli" target="_blank" rel="noopener" class="hover:text-accent transition-colors">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="max-w-6xl mx-auto px-6 pt-24 pb-20">
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      <!-- Left: headline + CTA -->
+      <div>
+        <div class="inline-flex items-center gap-2 text-xs font-mono text-accent border border-accent/30 bg-accent/5 rounded-full px-3 py-1 mb-6">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+          pip install dfseo
+        </div>
+        <h1 class="text-4xl lg:text-5xl font-extrabold text-white leading-tight tracking-tight mb-4">
+          SEO data from<br/>your terminal.
+        </h1>
+        <p class="text-lg text-muted leading-relaxed mb-8">
+          43+ commands to search, analyze, and audit — built for AI agents and humans who prefer the command line. JSON-first, agent-native, pay-per-use.
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a href="https://github.com/ricca91/dfseo-cli" target="_blank" rel="noopener"
+             class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white border border-white/15 rounded-lg text-sm font-medium transition-all">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            Star on GitHub
+          </a>
+          <button onclick="copyInstall()" id="install-btn"
+             class="inline-flex items-center gap-2 px-5 py-2.5 bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 rounded-lg text-sm font-mono transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            pip install dfseo
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: terminal animation -->
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+          <span class="ml-2 text-muted text-xs font-mono">bash</span>
+        </div>
+        <div class="terminal-body" id="terminal-output">
+          <div class="text-muted mb-1"><!-- animated content inserted by JS --></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM / PRICING CONTRAST -->
+  <section class="border-y border-white/5 bg-surface/50 py-16 fade-in">
+    <div class="max-w-4xl mx-auto px-6 text-center">
+      <p class="text-2xl font-semibold text-white mb-2">SEO tools charge $100+/month for data you can get with a single API call.</p>
+      <p class="text-muted mb-10">dfseo-cli cuts the middleman.</p>
+      <div class="grid grid-cols-3 gap-4 max-w-xl mx-auto">
+        <div class="bg-white/3 border border-white/8 rounded-xl p-5 opacity-50">
+          <p class="text-sm text-muted font-medium mb-1">Ahrefs</p>
+          <p class="text-2xl font-bold text-white line-through">$99<span class="text-sm font-normal text-muted">/mo</span></p>
+        </div>
+        <div class="bg-white/3 border border-white/8 rounded-xl p-5 opacity-50">
+          <p class="text-sm text-muted font-medium mb-1">SEMrush</p>
+          <p class="text-2xl font-bold text-white line-through">$129<span class="text-sm font-normal text-muted">/mo</span></p>
+        </div>
+        <div class="bg-accent/8 border border-accent/30 rounded-xl p-5 shadow-lg shadow-accent/5">
+          <p class="text-sm text-accent font-medium mb-1">dfseo-cli</p>
+          <p class="text-2xl font-bold text-accent">$0.002<span class="text-sm font-normal text-accent/70">/query</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMAND SHOWCASE -->
+  <section id="commands" class="max-w-6xl mx-auto px-6 py-24">
+    <div class="text-center mb-14 fade-in">
+      <h2 class="text-3xl font-bold text-white mb-3">Four APIs. One CLI.</h2>
+      <p class="text-muted">Everything you need for SEO research, in your shell.</p>
+    </div>
+    <div class="grid md:grid-cols-2 gap-5">
+      <!-- SERP -->
+      <div class="code-card bg-surface border border-white/7 rounded-xl p-6 transition-all fade-in code-block">
+        <button class="copy-btn" onclick="copyCode(this, 'dfseo serp google &quot;your keyword&quot; --location &quot;Italy&quot; --depth 100')">copy</button>
+        <p class="text-xs text-accent font-mono font-medium mb-2 uppercase tracking-widest">SERP Analysis</p>
+        <pre class="text-sm"><span class="cmd-prompt">$ </span><span class="cmd-text">dfseo serp google "your keyword" \
+  --location "Italy" --depth 100</span></pre>
+        <p class="text-muted text-sm mt-3">Google, Bing, YouTube. Any keyword, any location, real-time results. Includes featured snippets and People Also Ask.</p>
+      </div>
+
+      <!-- Keywords -->
+      <div class="code-card bg-surface border border-white/7 rounded-xl p-6 transition-all fade-in code-block">
+        <button class="copy-btn" onclick="copyCode(this, 'dfseo keywords volume &quot;email hosting&quot; &quot;smtp provider&quot; --include-serp-info')">copy</button>
+        <p class="text-xs text-accent font-mono font-medium mb-2 uppercase tracking-widest">Keyword Research</p>
+        <pre class="text-sm"><span class="cmd-prompt">$ </span><span class="cmd-text">dfseo keywords volume \
+  "email hosting" "smtp provider" \
+  --include-serp-info</span></pre>
+        <p class="text-muted text-sm mt-3">Volume, CPC, difficulty, search intent. Up to 700 keywords per request. Bulk difficulty up to 1000.</p>
+      </div>
+
+      <!-- Site Audit -->
+      <div class="code-card bg-surface border border-white/7 rounded-xl p-6 transition-all fade-in code-block">
+        <button class="copy-btn" onclick="copyCode(this, 'dfseo site audit &quot;domain.com&quot; --max-pages 500')">copy</button>
+        <p class="text-xs text-accent font-mono font-medium mb-2 uppercase tracking-widest">Site Audit</p>
+        <pre class="text-sm"><span class="cmd-prompt">$ </span><span class="cmd-text">dfseo site audit "domain.com" \
+  --max-pages 500</span></pre>
+        <p class="text-muted text-sm mt-3">60+ on-page checks. Broken links. Duplicate content. Redirect chains. Lighthouse scores.</p>
+      </div>
+
+      <!-- Backlinks -->
+      <div class="code-card bg-surface border border-white/7 rounded-xl p-6 transition-all fade-in code-block">
+        <button class="copy-btn" onclick="copyCode(this, 'dfseo backlinks gap &quot;you.com&quot; &quot;competitor1.com&quot; &quot;competitor2.com&quot;')">copy</button>
+        <p class="text-xs text-accent font-mono font-medium mb-2 uppercase tracking-widest">Backlink Analysis</p>
+        <pre class="text-sm"><span class="cmd-prompt">$ </span><span class="cmd-text">dfseo backlinks gap "you.com" \
+  "competitor1.com" "competitor2.com"</span></pre>
+        <p class="text-muted text-sm mt-3">Find who links to competitors but not to you. The ultimate link building weapon.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUILT FOR AGENTS -->
+  <section class="border-y border-white/5 bg-surface/30 py-20 fade-in">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <div>
+          <h2 class="text-3xl font-bold text-white mb-4">Built for AI agents.<br/><span class="text-muted font-normal">Usable by humans.</span></h2>
+          <p class="text-muted leading-relaxed mb-6">JSON on stdout. Errors on stderr. Semantic exit codes. Your agent parses the output. You read the table. Same data, different format.</p>
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-2 h-2 rounded-full bg-accent flex-shrink-0"></span>
+              <span class="text-text">Ships with <code class="font-mono text-accent text-xs bg-accent/10 px-1.5 py-0.5 rounded">SKILL.md</code> for OpenClaw, Claude Code, and any skill-aware agent</span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-2 h-2 rounded-full bg-accent flex-shrink-0"></span>
+              <span class="text-text">Exit codes: 0 success · 2 auth error · 3 rate limit · 5 no balance</span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-2 h-2 rounded-full bg-accent flex-shrink-0"></span>
+              <span class="text-text"><code class="font-mono text-accent text-xs bg-accent/10 px-1.5 py-0.5 rounded">--dry-run</code> shows cost estimates before any API call</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-block bg-[#0d0d14] border border-white/8 rounded-xl p-6 font-mono text-sm">
+          <button class="copy-btn" onclick="copyCode(this, `# For agents\nresult=$(dfseo keywords difficulty &quot;seo tool&quot; -q)\necho $result | jq \'.results[0].keyword_difficulty\'\n\n# For humans\ndfseo keywords difficulty &quot;seo tool&quot; --output table`)">copy</button>
+          <p class="text-muted text-xs mb-4"># For agents</p>
+          <p><span class="text-[#86efac]">result</span><span class="text-white">=$(</span><span class="text-[#7dd3fc]">dfseo</span><span class="text-white"> keywords difficulty </span><span class="text-[#86efac]">"seo tool"</span><span class="text-white"> -q)</span></p>
+          <p><span class="text-white">echo $result | </span><span class="text-[#7dd3fc]">jq</span><span class="text-[#86efac]"> '.results[0].keyword_difficulty'</span></p>
+          <p class="text-white mt-1">→ <span class="text-[#fbbf24]">72</span></p>
+          <p class="text-muted text-xs mt-5 mb-4"># For humans</p>
+          <p><span class="text-[#7dd3fc]">dfseo</span><span class="text-white"> keywords difficulty </span><span class="text-[#86efac]">"seo tool"</span><span class="text-white"> --output table</span></p>
+          <div class="mt-3 text-muted text-xs border-t border-white/5 pt-3">
+            <p class="text-text mb-1">Keyword&nbsp;&nbsp;&nbsp; │ KD │ Level</p>
+            <p>──────────┼────┼──────────</p>
+            <p>seo tool&nbsp;&nbsp; │ <span class="text-[#fbbf24]">72</span> │ <span class="text-red-400">████████</span> Hard</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FULL COMMAND REFERENCE -->
+  <section class="max-w-6xl mx-auto px-6 py-24 fade-in">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl font-bold text-white mb-3">43+ commands across 4 APIs</h2>
+      <p class="text-muted">Everything covered, nothing duplicated.</p>
+    </div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <!-- SERP -->
+      <div class="bg-surface border border-white/7 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm font-semibold text-white">SERP</p>
+          <span class="text-xs font-mono bg-accent/10 text-accent px-2 py-0.5 rounded">8</span>
+        </div>
+        <div class="space-y-1.5">
+          <p class="cmd-badge">serp google</p> <p class="cmd-badge">serp bing</p>
+          <p class="cmd-badge">serp youtube</p> <p class="cmd-badge">serp compare</p>
+          <p class="cmd-badge">serp locations</p> <p class="cmd-badge">serp languages</p>
+          <p class="cmd-badge">auth setup</p> <p class="cmd-badge">auth status</p>
+        </div>
+      </div>
+
+      <!-- Keywords -->
+      <div class="bg-surface border border-white/7 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm font-semibold text-white">Keywords</p>
+          <span class="text-xs font-mono bg-accent/10 text-accent px-2 py-0.5 rounded">8</span>
+        </div>
+        <div class="space-y-1.5">
+          <p class="cmd-badge">keywords volume</p>
+          <p class="cmd-badge">keywords suggestions</p>
+          <p class="cmd-badge">keywords ideas</p>
+          <p class="cmd-badge">keywords difficulty</p>
+          <p class="cmd-badge">keywords search-intent</p>
+          <p class="cmd-badge">keywords for-site</p>
+          <p class="cmd-badge">keywords ads-volume</p>
+          <p class="cmd-badge">keywords ads-suggestions</p>
+        </div>
+      </div>
+
+      <!-- Site Audit -->
+      <div class="bg-surface border border-white/7 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm font-semibold text-white">Site Audit</p>
+          <span class="text-xs font-mono bg-accent/10 text-accent px-2 py-0.5 rounded">12</span>
+        </div>
+        <div class="space-y-1.5">
+          <p class="cmd-badge">site audit</p>
+          <p class="cmd-badge">site instant</p>
+          <p class="cmd-badge">site crawl</p>
+          <p class="cmd-badge">site summary</p>
+          <p class="cmd-badge">site pages</p>
+          <p class="cmd-badge">site links</p>
+          <p class="cmd-badge">site duplicates</p>
+          <p class="cmd-badge">site redirects</p>
+          <p class="cmd-badge">site non-indexable</p>
+          <p class="cmd-badge">site resources</p>
+          <p class="cmd-badge">site lighthouse</p>
+          <p class="cmd-badge">site tasks</p>
+        </div>
+      </div>
+
+      <!-- Backlinks -->
+      <div class="bg-surface border border-white/7 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm font-semibold text-white">Backlinks</p>
+          <span class="text-xs font-mono bg-accent/10 text-accent px-2 py-0.5 rounded">13</span>
+        </div>
+        <div class="space-y-1.5">
+          <p class="cmd-badge">backlinks summary</p>
+          <p class="cmd-badge">backlinks list</p>
+          <p class="cmd-badge">backlinks anchors</p>
+          <p class="cmd-badge">backlinks referring-domains</p>
+          <p class="cmd-badge">backlinks history</p>
+          <p class="cmd-badge">backlinks competitors</p>
+          <p class="cmd-badge">backlinks gap</p>
+          <p class="cmd-badge">backlinks pages</p>
+          <p class="cmd-badge">bulk ranks</p>
+          <p class="cmd-badge">bulk backlinks</p>
+          <p class="cmd-badge">bulk spam-score</p>
+          <p class="cmd-badge">bulk referring-domains</p>
+          <p class="cmd-badge">bulk new-lost</p>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-muted text-sm">41 commands. 4 APIs. One CLI.</p>
+  </section>
+
+  <!-- QUICK START -->
+  <section id="quickstart" class="border-t border-white/5 bg-surface/30 py-20 fade-in">
+    <div class="max-w-2xl mx-auto px-6">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold text-white mb-3">Up in 60 seconds.</h2>
+        <p class="text-muted">Three steps and you're searching.</p>
+      </div>
+      <div class="space-y-6">
+        <div class="flex gap-4 items-start">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-accent text-sm font-bold font-mono">1</div>
+          <div class="flex-1">
+            <p class="text-white font-medium mb-2">Install</p>
+            <div class="code-block bg-[#0d0d14] border border-white/8 rounded-lg px-4 py-3 font-mono text-sm">
+              <button class="copy-btn" onclick="copyCode(this, 'pip install dfseo')">copy</button>
+              <span class="cmd-prompt">$ </span><span class="cmd-text">pip install dfseo</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-accent text-sm font-bold font-mono">2</div>
+          <div class="flex-1">
+            <p class="text-white font-medium mb-2">Authenticate</p>
+            <div class="code-block bg-[#0d0d14] border border-white/8 rounded-lg px-4 py-3 font-mono text-sm">
+              <button class="copy-btn" onclick="copyCode(this, 'export DATAFORSEO_LOGIN=&quot;you@email.com&quot;\nexport DATAFORSEO_PASSWORD=&quot;your_api_password&quot;')">copy</button>
+              <p><span class="cmd-prompt">$ </span><span class="cmd-text">export DATAFORSEO_LOGIN=<span class="text-[#86efac]">"you@email.com"</span></span></p>
+              <p><span class="cmd-prompt">$ </span><span class="cmd-text">export DATAFORSEO_PASSWORD=<span class="text-[#86efac]">"your_api_password"</span></span></p>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-accent text-sm font-bold font-mono">3</div>
+          <div class="flex-1">
+            <p class="text-white font-medium mb-2">Search</p>
+            <div class="code-block bg-[#0d0d14] border border-white/8 rounded-lg px-4 py-3 font-mono text-sm">
+              <button class="copy-btn" onclick="copyCode(this, 'dfseo serp google &quot;your first keyword&quot;')">copy</button>
+              <span class="cmd-prompt">$ </span><span class="cmd-text">dfseo serp google <span class="text-[#86efac]">"your first keyword"</span></span>
+            </div>
+            <p class="text-muted text-xs mt-2">Requires a DataForSEO API account. <a href="https://dataforseo.com/pricing" target="_blank" rel="noopener" class="text-accent hover:underline">Free trial available</a>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENT INTEGRATION -->
+  <section class="max-w-4xl mx-auto px-6 py-20 text-center fade-in">
+    <h2 class="text-3xl font-bold text-white mb-3">Drop it into any AI agent.</h2>
+    <p class="text-muted mb-8 max-w-lg mx-auto">dfseo-cli ships with a <code class="font-mono text-accent text-sm bg-accent/10 px-1.5 py-0.5 rounded">SKILL.md</code> file. Any agent that reads skill files can discover and use all commands automatically.</p>
+    <div class="code-block bg-[#0d0d14] border border-white/8 rounded-xl p-6 text-left font-mono text-sm mb-6 mx-auto max-w-2xl">
+      <button class="copy-btn" onclick="copyCode(this, `---\nname: dfseo\ndescription: >\n  SEO data CLI powered by DataForSEO APIs.\n  Triggers on: SERP, keyword ranking, backlink analysis, site audit\n---`)">copy</button>
+      <p class="text-muted text-xs mb-1">SKILL.md</p>
+      <p><span class="text-[#7dd3fc]">---</span></p>
+      <p><span class="text-[#7dd3fc]">name</span><span class="text-white">: </span><span class="text-[#86efac]">dfseo</span></p>
+      <p><span class="text-[#7dd3fc]">description</span><span class="text-white">: &gt;</span></p>
+      <p class="pl-4 text-[#86efac]">SEO data CLI powered by DataForSEO APIs.</p>
+      <p class="pl-4 text-[#86efac]">Triggers on: SERP, keyword ranking,</p>
+      <p class="pl-4 text-[#86efac]">backlink analysis, site audit</p>
+      <p><span class="text-[#7dd3fc]">---</span></p>
+    </div>
+    <p class="text-muted text-sm">Works with: <span class="text-text">Claude Code</span> · <span class="text-text">OpenClaw</span> · <span class="text-text">Gemini CLI</span> · <span class="text-text">Any shell-executing agent</span></p>
+  </section>
+
+  <!-- FOOTER CTA -->
+  <section class="border-t border-white/5 py-20 text-center fade-in">
+    <div class="max-w-lg mx-auto px-6">
+      <h2 class="text-2xl font-bold text-white mb-2">Ready to try it?</h2>
+      <p class="text-muted mb-8">One command to install. Zero config to start.</p>
+      <div class="flex flex-wrap gap-3 justify-center">
+        <a href="https://github.com/ricca91/dfseo-cli" target="_blank" rel="noopener"
+           class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white border border-white/15 rounded-lg text-sm font-medium transition-all">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          Star on GitHub
+        </a>
+        <button onclick="copyInstall()" id="install-btn-2"
+           class="inline-flex items-center gap-2 px-5 py-2.5 bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 rounded-lg text-sm font-mono transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          pip install dfseo
+        </button>
+      </div>
+      <div class="mt-12 pt-8 border-t border-white/5 flex flex-wrap gap-5 justify-center text-sm text-muted">
+        <a href="https://github.com/ricca91/dfseo-cli" target="_blank" rel="noopener" class="hover:text-text transition-colors">GitHub</a>
+        <a href="https://pypi.org/project/dfseo/" target="_blank" rel="noopener" class="hover:text-text transition-colors">PyPI</a>
+        <a href="https://docs.dataforseo.com/v3/" target="_blank" rel="noopener" class="hover:text-text transition-colors">DataForSEO Docs</a>
+        <a href="https://github.com/ricca91/dfseo-cli/blob/main/LICENSE" target="_blank" rel="noopener" class="hover:text-text transition-colors">MIT License</a>
+      </div>
+      <p class="mt-4 text-xs text-muted/60">Built with Python + Typer. Powered by DataForSEO APIs.</p>
+    </div>
+  </section>
+
+  <!-- JS -->
+  <script>
+    // ——— Terminal animation ———
+    const sequences = [
+      {
+        cmd: 'dfseo serp google "email hosting" --location Italy',
+        output: `{
+  <span class="json-key">"keyword"</span>: <span class="json-str">"email hosting"</span>,
+  <span class="json-key">"results_count"</span>: <span class="json-num">100</span>,
+  <span class="json-key">"organic_results"</span>: [{
+    <span class="json-key">"rank"</span>: <span class="json-num">1</span>,
+    <span class="json-key">"domain"</span>: <span class="json-str">"qboxmail.it"</span>,
+    <span class="json-key">"title"</span>: <span class="json-str">"Email Hosting Pro"</span>
+  }],
+  <span class="json-key">"cost"</span>: <span class="json-num">0.002</span>
+}`
+      },
+      {
+        cmd: 'dfseo keywords difficulty "seo" "sem" "ppc"',
+        output: `[
+  { <span class="json-key">"keyword"</span>: <span class="json-str">"seo"</span>, <span class="json-key">"keyword_difficulty"</span>: <span class="json-num">86</span> },
+  { <span class="json-key">"keyword"</span>: <span class="json-str">"sem"</span>, <span class="json-key">"keyword_difficulty"</span>: <span class="json-num">72</span> },
+  { <span class="json-key">"keyword"</span>: <span class="json-str">"ppc"</span>, <span class="json-key">"keyword_difficulty"</span>: <span class="json-num">65</span> }
+]`
+      },
+      {
+        cmd: 'dfseo backlinks summary "competitor.com"',
+        output: `{
+  <span class="json-key">"rank"</span>: <span class="json-num">520</span>,
+  <span class="json-key">"backlinks"</span>: <span class="json-num">8450</span>,
+  <span class="json-key">"referring_domains"</span>: <span class="json-num">1240</span>,
+  <span class="json-key">"spam_score"</span>: <span class="json-num">3</span>,
+  <span class="json-key">"cost"</span>: <span class="json-num">0.02</span>
+}`
+      }
+    ];
+
+    let seqIdx = 0;
+    const el = document.getElementById('terminal-output');
+
+    async function typeTerminal() {
+      const seq = sequences[seqIdx % sequences.length];
+      seqIdx++;
+      el.innerHTML = '';
+
+      // Type command
+      const promptEl = document.createElement('div');
+      promptEl.innerHTML = '<span class="cmd-prompt">$ </span><span class="cmd-text"></span>';
+      el.appendChild(promptEl);
+      const cmdSpan = promptEl.querySelector('.cmd-text');
+
+      for (let i = 0; i < seq.cmd.length; i++) {
+        cmdSpan.textContent += seq.cmd[i];
+        await sleep(28);
+      }
+      await sleep(400);
+
+      // Output
+      const outEl = document.createElement('div');
+      outEl.className = 'mt-2 text-xs text-[#a1a1aa]';
+      outEl.innerHTML = seq.output;
+      el.appendChild(outEl);
+
+      await sleep(4500);
+      typeTerminal();
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    typeTerminal();
+
+    // ——— Copy to clipboard ———
+    function copyCode(btn, text) {
+      navigator.clipboard.writeText(text.replace(/&quot;/g, '"').replace(/&amp;/g, '&')).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+      });
+    }
+
+    function copyInstall() {
+      navigator.clipboard.writeText('pip install dfseo').then(() => {
+        ['install-btn', 'install-btn-2'].forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '✓ Copied!';
+            setTimeout(() => { btn.innerHTML = orig; }, 2000);
+          }
+        });
+      });
+    }
+
+    // ——— Fade-in on scroll ———
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>
