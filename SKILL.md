@@ -653,4 +653,4 @@ pip install dfseo
 ## Links
 
 - DataForSEO API Docs: https://docs.dataforseo.com/v3/
-- Project Repository: https://github.com/example/dfseo-cli
+- Project Repository: https://github.com/ricca91/dfseo-cli
