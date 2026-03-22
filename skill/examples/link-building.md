@@ -1,108 +1,169 @@
 # Link Building Workflow
 
-Find and prioritize link building opportunities using backlink gap analysis.
+## Goal
 
-## Step 1: Discover your competitors
+Audit the current backlink profile, identify the strongest outreach
+prospects, and deliver a prioritized link building plan the user can
+execute immediately.
 
-Find domains sharing a similar backlink profile to yours:
+## When to Use
 
-```bash
-dfseo backlinks competitors "your-site.com" --sort rank --limit 20
-```
+- The user asks for a link building strategy or outreach target list.
+- The user wants to understand their backlink health or anchor text
+  distribution.
+- The user mentions "link building", "backlinks", "outreach", or
+  "referring domains" in any context.
 
-Note the top competitors — these are your link building benchmarks.
+---
 
-## Step 2: Run link gap analysis
-
-Find domains that link to competitors but NOT to you:
-
-```bash
-dfseo backlinks gap "your-site.com" "competitor1.com" "competitor2.com" "competitor3.com" \
-  --min-rank 200 --dofollow-only --limit 100
-```
-
-The `--min-rank 200` filter ensures you only target quality domains.
-
-## Step 3: Analyze top opportunities
-
-For each high-rank domain from the gap analysis, investigate further:
+## Step 1: Profile Overview
 
 ```bash
-# See how many times the domain links to competitors
-dfseo backlinks list "competitor1.com" --from-domain "opportunity-domain.com" --limit 5
+dfseo backlinks summary "domain.com"
 ```
 
-This shows the context in which they link — helps you craft your outreach.
+### What to look for
 
-## Step 4: Check your anchor text distribution
+- Referring domain count matters more than raw backlink count because
+  search engines reward link diversity over link volume.
+- Dofollow ratio: a natural profile typically falls between 70% and
+  90% dofollow.
+- Broken backlinks signal redirect or reclaim opportunities that can
+  recover lost link equity quickly.
 
-Before building more links, audit your current profile health:
+### Decision
+
+- Referring domains far below competitor levels: link acquisition is
+  the top priority before any other SEO work.
+- A large number of broken backlinks exist: fix those first because
+  recovering existing equity is faster than earning new links.
+
+---
+
+## Step 2: Anchor Text Health Check
 
 ```bash
-dfseo backlinks anchors "your-site.com" --sort backlinks --limit 30 --output table
+dfseo backlinks anchors "domain.com" --sort backlinks --limit 30
 ```
 
-Healthy profile: branded anchors (your brand name) > exact-match keyword anchors.
-Red flag: too many exact-match anchors (over-optimization).
+### What to look for
 
-## Step 5: Find your most-linked pages
+- Branded anchors (company name, domain URL, brand variations) should
+  account for at least 30% of the profile to look natural.
+- Exact-match keyword anchors should remain below 10% to stay clear
+  of algorithmic penalties.
+- Unexpected or irrelevant anchors may point to negative SEO attacks
+  or low-quality link sources.
 
-Understand which content earns links naturally:
+### Decision
+
+- Anchor distribution is over-optimized: all future outreach should
+  use branded, URL, or generic anchor text to dilute the ratio.
+- Distribution looks healthy: move on to opportunity discovery
+  without imposing anchor constraints.
+- Spammy anchors detected: recommend building a disavow file before
+  pursuing any new links.
+
+---
+
+## Step 3: Link Gap Analysis
 
 ```bash
-dfseo backlinks pages "your-site.com" --sort backlinks --limit 20 --output table
+dfseo backlinks gap "user.com" "comp1.com" "comp2.com" --min-rank 200
 ```
 
-Create more content similar to your top-linked pages.
+### What to look for
 
-## Step 6: Monitor new and lost backlinks
+- Domains linking to every listed competitor but not the user are
+  first-tier prospects. They already link within the niche, so the
+  probability of earning a link is highest.
+- Domains linking to at least one competitor are second-tier prospects
+  worth reviewing individually.
+- Apply an authority filter to keep the list focused on quality.
 
-Track your backlink profile changes:
+### Decision
+
+- Many high-authority prospects available: the user can grow quickly
+  through structured outreach campaigns.
+- Few quality prospects in the gap: shift toward content-driven link
+  earning by creating tools, studies, or visual assets that attract
+  links without direct outreach.
+
+---
+
+## Step 4: Prospect Prioritization
 
 ```bash
-# New backlinks (what you've earned recently)
-dfseo backlinks list "your-site.com" --status new --sort first_seen --limit 20
-
-# Lost backlinks (what you need to recover)
-dfseo backlinks list "your-site.com" --status lost --sort last_seen --limit 20
+dfseo backlinks referring-domains "competitor.com" --sort rank --limit 50
 ```
 
-## Step 7: Bulk competitor comparison
+### What to look for
 
-Compare your rank against multiple competitors:
+- Domains with rank 300 or higher deserve personalized, one-to-one
+  outreach.
+- Categorize each prospect by type: editorial blog, news publication,
+  niche directory, or resource page. Each type requires a different
+  pitch style.
+- Topical relevance outweighs raw authority. A relevant site at rank
+  300 is a better target than an unrelated site at rank 500.
+
+### Decision
+
+- Competitor's links come mainly from news outlets: the user needs a
+  digital PR strategy with newsworthy angles.
+- Most links originate from blogs: guest posting and collaborative
+  content are the best approaches.
+- Directory links dominate: submit to the same directories and
+  resource lists as a quick-win tactic.
+
+---
+
+## Step 5: Monitor New and Lost Links
 
 ```bash
-dfseo backlinks bulk ranks \
-  "your-site.com" "competitor1.com" "competitor2.com" \
-  --output table
+dfseo backlinks list "domain.com" --status new
 ```
-
-## Complete link building audit script
 
 ```bash
-#!/bin/bash
-YOUR_SITE="your-site.com"
-COMPETITORS="competitor1.com competitor2.com competitor3.com"
-
-echo "=== Current Backlink Profile ==="
-dfseo backlinks summary "$YOUR_SITE" -q
-
-echo ""
-echo "=== Link Gap Opportunities ==="
-dfseo backlinks gap "$YOUR_SITE" $COMPETITORS --min-rank 200 --dofollow-only --limit 50 -q
-
-echo ""
-echo "=== Recently Lost Backlinks ==="
-dfseo backlinks list "$YOUR_SITE" --status lost --limit 20 -q
-
-echo ""
-echo "=== Anchor Text Distribution ==="
-dfseo backlinks anchors "$YOUR_SITE" --limit 15 -q
+dfseo backlinks list "domain.com" --status lost
 ```
 
-## Tips
+### What to look for
 
-- **Focus on referring domains, not raw backlinks** — one domain linking 100 times counts less than 100 different domains
-- **Prioritize by rank** — a rank 500+ domain is far more valuable than rank 50
-- **Check spam score** — avoid links from domains with spam score > 30
-- **Context matters** — a link from a relevant industry page is worth more than a generic directory
+- New links: confirm that outreach campaigns are producing measurable
+  results over time.
+- Lost links: flag any high-authority losses that warrant a recovery
+  email to the webmaster.
+- Link velocity: a sudden burst of low-quality new links may indicate
+  a negative SEO attack. A sudden drop may mean linking pages were
+  removed or domains expired.
+
+### Decision
+
+- Steady flow of quality new links: the current strategy is working.
+  Continue and look for ways to scale.
+- Lost links outpace new links: pause outreach and investigate root
+  causes (content changes, expired domains, page removals).
+- Negative SEO pattern detected: compile a disavow list and submit
+  it through Search Console.
+
+---
+
+## Report Template
+
+Organize the deliverable into these sections:
+
+1. **Profile Snapshot** -- backlink total, referring domain count,
+   domain rank, dofollow ratio, and overall spam risk.
+2. **Anchor Text Audit** -- current distribution percentages with a
+   clear verdict on whether rebalancing is needed.
+3. **Prospect List** -- ranked table of outreach targets showing
+   domain rank, domain type, and suggested pitch angle.
+4. **Outreach Playbook** -- recommended approach for each prospect
+   category (blogs, news, directories, resource pages).
+5. **Recovery Opportunities** -- broken or lost backlinks worth
+   reclaiming, with the original linking URL for each.
+6. **Monitoring Cadence** -- how often to re-run each check and what
+   thresholds should trigger action.
+7. **Action Items** -- numbered list of next steps sorted by a
+   combination of expected impact and required effort.

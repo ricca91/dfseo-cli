@@ -152,6 +152,52 @@ dfseo serp youtube "email marketing tutorial" --depth 20
 
 ---
 
+## `dfseo serp autocomplete`
+
+Get Google autocomplete suggestions for a keyword. Uses the SERP Google Autocomplete Live Advanced endpoint ($0.002/request).
+
+```
+Usage: dfseo serp autocomplete [OPTIONS] KEYWORD
+
+Arguments:
+  keyword  TEXT  Search keyword [required]
+
+Options:
+  --location   -l  TEXT   Location name
+  --language   -L  TEXT   Language name
+  --fields     -f  TEXT   Comma-separated fields to include
+  --raw-params     TEXT   Raw JSON payload
+  --dry-run               Show estimated cost without executing
+  --output     -o  TEXT   Output format [default: auto]
+  --login          TEXT   DataForSEO login
+  --password       TEXT   DataForSEO password
+  --verbose    -v          Verbose output
+```
+
+**Endpoint:** POST `/v3/serp/google/autocomplete/live/advanced` — $0.002/request
+
+**Example:**
+
+```bash
+dfseo serp autocomplete "email hosting"
+```
+
+**Output JSON structure:**
+
+```json
+{
+  "keyword": "email hosting",
+  "suggestions": [
+    {"type": "suggestion_search", "suggestion": "email hosting free"},
+    {"type": "suggestion_search", "suggestion": "email hosting for business"}
+  ],
+  "cost": 0.002,
+  "timestamp": "2026-03-14T10:00:00Z"
+}
+```
+
+---
+
 ## `dfseo serp compare`
 
 Compare SERP results across multiple search engines. Shows common domains, unique domains per engine, and ranking differences.
@@ -230,78 +276,4 @@ Options:
 
 ```bash
 dfseo serp languages --search "ital"
-```
-
----
-
-## `dfseo auth setup`
-
-Set up DataForSEO credentials interactively. Saves to `~/.config/dfseo/config.toml`.
-
-```
-Usage: dfseo auth setup [OPTIONS]
-
-Options:
-  --login     TEXT  DataForSEO login email
-  --password  TEXT  DataForSEO API password
-  --verbose   -v    Verbose output
-```
-
----
-
-## `dfseo auth status`
-
-Check authentication status and account balance.
-
-```
-Usage: dfseo auth status [OPTIONS]
-
-Options:
-  --login     TEXT  DataForSEO login (overrides config)
-  --password  TEXT  DataForSEO password (overrides config)
-  --output -o TEXT  Output format [default: json]
-  --verbose   -v    Verbose output
-```
-
-**Example:**
-
-```bash
-dfseo auth status
-# → {"login": "you@email.com", "balance": 42.50, "rate_limit": 2000}
-```
-
----
-
-## `dfseo config set`
-
-Set a default configuration value. Persisted to `~/.config/dfseo/config.toml`.
-
-```
-Usage: dfseo config set [OPTIONS] KEY VALUE
-
-Arguments:
-  key    TEXT  Configuration key: location, language, device, output [required]
-  value  TEXT  Configuration value [required]
-```
-
-**Examples:**
-
-```bash
-dfseo config set location "Italy"
-dfseo config set language "Italian"
-dfseo config set device desktop
-dfseo config set output json
-```
-
----
-
-## `dfseo config show`
-
-Show current configuration.
-
-```
-Usage: dfseo config show [OPTIONS]
-
-Options:
-  --output  -o  TEXT  Output format [default: json]
 ```
