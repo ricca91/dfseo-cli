@@ -544,3 +544,195 @@ def _build_comparison(
         "common_domains": common_domains[:20],  # Top 20
         "unique_domains": {k: v[:20] for k, v in unique_domains.items()},
     }
+
+
+@serp_app.command()
+def autocomplete(
+    keyword: str = typer.Argument(..., help="Keyword to get autocomplete suggestions for"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name (e.g., 'Italy')"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name (e.g., 'Italian')"),
+    fields: str = typer.Option(None, "--fields", "-f", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get Google autocomplete suggestions for keyword discovery."""
+    from datetime import datetime, timezone
+
+    defaults = _get_defaults()
+
+    location = location or defaults["location_name"]
+    language = language or defaults.get("language_name")
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        keyword = validate_keyword(keyword)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "keyword": keyword,
+        "location_name": location,
+        "language_name": language,
+    }]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/serp/google/autocomplete/live/advanced",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        data = client._request(
+            "POST",
+            "/serp/google/autocomplete/live/advanced",
+            json_data=raw_payload or payload,
+        )
+
+        result = _parse_autocomplete_response(data, keyword, location, language)
+        client.close()
+
+        if fields_list:
+            result = filter_fields(result, fields_list)
+        formatted = _format_autocomplete_output(result, output_format)
+        print(formatted)
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_autocomplete_response(
+    data: dict,
+    keyword: str,
+    location: str,
+    language: str | None,
+) -> dict:
+    """Parse autocomplete API response."""
+    from datetime import datetime, timezone
+
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    suggestions = []
+    cost = api_response.cost or 0.0
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        items = task_result.get("items", [])
+
+        for item in items:
+            suggestions.append({
+                "suggestion": item.get("title", "") or item.get("suggestion", ""),
+                "type": item.get("type", ""),
+                "rank": item.get("rank_absolute", 0),
+            })
+
+    return {
+        "keyword": keyword,
+        "location": location,
+        "language": language,
+        "suggestions_count": len(suggestions),
+        "suggestions": suggestions,
+        "cost": cost,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _format_autocomplete_output(result: dict, output_format: str) -> str:
+    """Format autocomplete command output."""
+    if output_format in ("json", "json-pretty"):
+        return format_output(result, output_format)
+    elif output_format == "csv":
+        return _format_autocomplete_csv(result)
+    else:
+        return _format_autocomplete_table(result)
+
+
+def _format_autocomplete_table(result: dict) -> str:
+    """Format autocomplete results as table."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console(force_terminal=True)
+    output_lines = []
+
+    keyword = result.get("keyword", "")
+    count = result.get("suggestions_count", 0)
+
+    output_lines.append(f"  Autocomplete: \"{keyword}\" | Suggestions: {count}")
+    output_lines.append("")
+
+    suggestions = result.get("suggestions", [])
+    if suggestions:
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("#", style="dim", justify="right")
+        table.add_column("Suggestion", style="white", min_width=30)
+        table.add_column("Type", style="cyan")
+
+        for item in suggestions:
+            table.add_row(
+                str(item.get("rank", "")),
+                item.get("suggestion", ""),
+                item.get("type", "-"),
+            )
+
+        with console.capture() as capture:
+            console.print(table)
+        output_lines.append(capture.get())
+
+    cost = result.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+
+    return "\n".join(output_lines)
+
+
+def _format_autocomplete_csv(result: dict) -> str:
+    """Format autocomplete results as CSV."""
+    import csv
+    import io
+
+    output = io.StringIO()
+    suggestions = result.get("suggestions", [])
+
+    if suggestions:
+        writer = csv.DictWriter(
+            output,
+            fieldnames=["rank", "suggestion", "type"],
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        for item in suggestions:
+            writer.writerow(item)
+
+    return output.getvalue()

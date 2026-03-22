@@ -341,6 +341,93 @@ dfseo site resources "$TASK_ID" --type script --external-only
 
 ---
 
+## `dfseo site keyword-density`
+
+Analyze keyword frequency on crawled pages.
+
+```
+Usage: dfseo site keyword-density [OPTIONS] TASK_ID
+
+Arguments:
+  task_id  TEXT  Task ID from crawl command [required]
+
+Options:
+  --keyword  -k  TEXT     Filter by specific keyword
+  --limit    -n  INTEGER  Max results [default: 100]
+  --fields   -f  TEXT     Comma-separated fields to include
+  --output   -o  TEXT     Output format: json, table, csv
+  --login        TEXT     DataForSEO login
+  --password     TEXT     DataForSEO password
+  --verbose  -v           Verbose output
+```
+
+**Endpoint:** `on_page/keyword_density` — $0.0005/request
+
+**Example:**
+
+```bash
+dfseo site keyword-density "$TASK_ID" --keyword "hosting"
+```
+
+---
+
+## `dfseo site microdata`
+
+Analyze structured data (schema.org, JSON-LD, Open Graph) on crawled pages.
+
+```
+Usage: dfseo site microdata [OPTIONS] TASK_ID
+
+Arguments:
+  task_id  TEXT  Task ID from crawl command [required]
+
+Options:
+  --limit    -n  INTEGER  Max results [default: 100]
+  --fields   -f  TEXT     Comma-separated fields to include
+  --output   -o  TEXT     Output format: json, table, csv
+  --login        TEXT     DataForSEO login
+  --password     TEXT     DataForSEO password
+  --verbose  -v           Verbose output
+```
+
+**Endpoint:** `on_page/microdata` — $0.0005/request
+
+**Example:**
+
+```bash
+dfseo site microdata "$TASK_ID"
+```
+
+---
+
+## `dfseo site waterfall`
+
+Analyze resource loading waterfall for a page.
+
+```
+Usage: dfseo site waterfall [OPTIONS] URL
+
+Arguments:
+  url  TEXT  URL to analyze [required]
+
+Options:
+  --fields   -f  TEXT  Comma-separated fields to include
+  --output   -o  TEXT  Output format: json, table
+  --login        TEXT  DataForSEO login
+  --password     TEXT  DataForSEO password
+  --verbose  -v        Verbose output
+```
+
+**Endpoint:** `on_page/waterfall` — $0.001/request
+
+**Example:**
+
+```bash
+dfseo site waterfall "https://example.com/page"
+```
+
+---
+
 ## `dfseo site lighthouse`
 
 Run Google Lighthouse audit on a URL via DataForSEO's Lighthouse API.
