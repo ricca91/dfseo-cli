@@ -731,7 +731,7 @@ def _parse_instant_pages_response(data: dict[str, Any], url: str) -> dict[str, A
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         if items:
             page = items[0]
@@ -871,7 +871,7 @@ def _parse_pages_response(data: dict[str, Any], task_id: str) -> dict[str, Any]:
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             page = {
                 "url": item.get("url", ""),
                 "status_code": item.get("status_code", 0),
@@ -1058,7 +1058,7 @@ def _parse_links_response(
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             link = {
                 "url_from": item.get("url_from", ""),
                 "url_to": item.get("url_to", ""),
@@ -1213,7 +1213,7 @@ def _parse_duplicates_response(
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             dup = {
                 "value": item.get("tag_value", item.get("content", "")),
                 "urls": item.get("urls", []),
@@ -1350,7 +1350,7 @@ def _parse_redirects_response(data: dict[str, Any], task_id: str) -> dict[str, A
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             chain = {
                 "start_url": item.get("start_url", ""),
                 "end_url": item.get("end_url", ""),
@@ -1505,7 +1505,7 @@ def _parse_non_indexable_response(
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             page = {
                 "url": item.get("url", ""),
                 "status_code": item.get("status_code", 0),
@@ -1679,7 +1679,7 @@ def _parse_resources_response(
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             resource = {
                 "url": item.get("url", ""),
                 "resource_type": item.get("resource_type", ""),
@@ -2000,7 +2000,7 @@ def _parse_tasks_response(data: dict[str, Any], ready_only: bool) -> dict[str, A
         task_result = api_response.tasks[0].result[0]
 
         # The API returns different structure - handle both
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
         for item in items:
             task = {
                 "id": item.get("id", ""),
@@ -2162,7 +2162,7 @@ def _parse_keyword_density_response(data: dict[str, Any], task_id: str) -> dict[
         task_result = api_response.tasks[0].result[0]
         total_count = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             items_list.append({
                 "keyword": item.get("keyword", ""),
                 "frequency": item.get("frequency", 0),
@@ -2313,7 +2313,7 @@ def _parse_microdata_response(data: dict[str, Any], task_id: str) -> dict[str, A
         task_result = api_response.tasks[0].result[0]
         total_count = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             items_list.append({
                 "url": item.get("url", ""),
                 "test_results": item.get("test_results", {}),
@@ -2461,7 +2461,7 @@ def _parse_waterfall_response(data: dict[str, Any], url: str) -> dict[str, Any]:
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             resources.append({

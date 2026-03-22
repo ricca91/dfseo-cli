@@ -458,7 +458,7 @@ def _parse_backlinks_list_response(data: dict[str, Any], target: str) -> dict[st
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             backlink = {
                 "domain_from": item.get("domain_from", ""),
                 "url_from": item.get("url_from", ""),
@@ -638,7 +638,7 @@ def _parse_anchors_response(data: dict[str, Any], target: str) -> dict[str, Any]
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             anchor = {
                 "anchor": item.get("anchor", ""),
                 "backlinks": item.get("backlinks", 0),
@@ -789,7 +789,7 @@ def _parse_referring_domains_response(data: dict[str, Any], target: str) -> dict
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             domain = {
                 "domain": item.get("domain", ""),
                 "rank": item.get("rank", 0),
@@ -1047,7 +1047,7 @@ def _parse_competitors_response(data: dict[str, Any], target: str) -> dict[str, 
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             competitor = {
                 "domain": item.get("domain", ""),
                 "avg_position": item.get("avg_position", 0),
@@ -1217,7 +1217,7 @@ def _parse_gap_response(data: dict[str, Any], targets: list[str]) -> dict[str, A
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             opportunity: dict[str, Any] = {
                 "domain": item.get("domain", ""),
                 "rank": item.get("rank", 0),
@@ -1325,7 +1325,7 @@ def _parse_pages_response(data: dict[str, Any], target: str) -> dict[str, Any]:
         task_result = api_response.tasks[0].result[0]
         result["total_count"] = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             page = {
                 "url": item.get("page", ""),
                 "backlinks": item.get("backlinks", 0),
@@ -1431,7 +1431,7 @@ def _parse_bulk_ranks_response(data: dict[str, Any], targets: list[str]) -> dict
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
 
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             result_item = {
                 "target": item.get("target", ""),
                 "rank": item.get("rank", 0),
@@ -1539,7 +1539,7 @@ def _parse_bulk_generic_response(
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        for item in task_result.get("items", []):
+        for item in task_result.get("items") or []:
             entry: dict[str, Any] = {"target": item.get("target", "")}
             for field in fields:
                 entry[field] = item.get(field, 0)

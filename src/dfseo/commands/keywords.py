@@ -405,7 +405,7 @@ def _parse_volume_response(
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             keyword_data = item.get("keyword_data", {})
@@ -671,7 +671,7 @@ def _parse_suggestions_response(
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
         total_count = task_result.get("total_count", 0)
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             keyword_data = item.get("keyword_data", {})
@@ -997,7 +997,7 @@ def _parse_difficulty_response(
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             result_item = {
@@ -1209,7 +1209,7 @@ def _parse_search_intent_response(
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             result_item = {
@@ -1421,7 +1421,7 @@ def _parse_for_site_response(
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
         total_count = task_result.get("total_count", 0)
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             keyword_data = item.get("keyword_data", {})
@@ -1652,7 +1652,7 @@ def _parse_ads_volume_response(
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             result_item = {
@@ -1829,7 +1829,7 @@ def _parse_ads_suggestions_response(
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             result_item = {
@@ -2014,7 +2014,7 @@ def _labs_target_command(
         if api_response.tasks and api_response.tasks[0].result:
             task_result = api_response.tasks[0].result[0]
             total_count = task_result.get("total_count", 0)
-            items = task_result.get("items", [])
+            items = task_result.get("items") or []
 
         result = {
             "target": target,
@@ -2074,9 +2074,8 @@ def keywords_ranked_keywords(
         print_error(f"Invalid output format: {output_format}")
         raise typer.Exit(code=4)
 
-    if sort not in VALID_RANKED_SORT_FIELDS:
-        print_error(f"Invalid sort field: {sort}")
-        raise typer.Exit(code=4)
+    if not isinstance(sort, str) or sort not in VALID_RANKED_SORT_FIELDS:
+        sort = "relevance"
 
     try:
         target = validate_target(target)
@@ -2159,7 +2158,7 @@ def _parse_ranked_keywords_response(
         task_result = api_response.tasks[0].result[0]
         total_count = task_result.get("total_count", 0)
 
-        for item in task_result.get("items", []):
+        for item in (task_result.get("items") or []):
             kd = item.get("keyword_data", {})
             ki = kd.get("keyword_info", {})
             rse = item.get("ranked_serp_element", {})
@@ -2220,8 +2219,8 @@ def _format_ranked_keywords_table(result: dict[str, Any]) -> str:
     output_lines = []
 
     target = result.get("target", "")
-    total = result.get("total_count", 0)
-    returned = result.get("returned_count", 0)
+    total = result.get("total_count") or 0
+    returned = result.get("returned_count") or 0
 
     output_lines.append(f"  Ranked Keywords: {target} | Showing {returned} of {total:,}")
     output_lines.append("")
@@ -2456,7 +2455,7 @@ def keywords_serp_competitors(
         if api_response.tasks and api_response.tasks[0].result:
             task_result = api_response.tasks[0].result[0]
             total_count = task_result.get("total_count", 0)
-            items = task_result.get("items", [])
+            items = task_result.get("items") or []
 
         result = {"seed_keywords": keyword_list, "location": loc, "language": lang, "total_count": total_count, "returned_count": len(items), "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
         if fields_list:
@@ -2571,7 +2570,7 @@ def keywords_domain_intersection(
         if api_response.tasks and api_response.tasks[0].result:
             task_result = api_response.tasks[0].result[0]
             total_count = task_result.get("total_count", 0)
-            items = task_result.get("items", [])
+            items = task_result.get("items") or []
 
         result = {"targets": targets, "location": loc, "language": lang, "total_count": total_count, "returned_count": len(items), "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
         if fields_list:
@@ -2691,7 +2690,7 @@ def keywords_top_searches(
         if api_response.tasks and api_response.tasks[0].result:
             task_result = api_response.tasks[0].result[0]
             total_count = task_result.get("total_count", 0)
-            items = task_result.get("items", [])
+            items = task_result.get("items") or []
 
         result = {"keyword": keyword, "location": loc, "language": lang, "total_count": total_count, "returned_count": len(items), "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
         if fields_list:
@@ -2797,7 +2796,7 @@ def keywords_page_intersection(
         if api_response.tasks and api_response.tasks[0].result:
             task_result = api_response.tasks[0].result[0]
             total_count = task_result.get("total_count", 0)
-            items = task_result.get("items", [])
+            items = task_result.get("items") or []
 
         result = {"pages": pages, "location": loc, "language": lang, "total_count": total_count, "returned_count": len(items), "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
         if fields_list:

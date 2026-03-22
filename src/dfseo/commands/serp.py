@@ -649,7 +649,7 @@ def _parse_autocomplete_response(
 
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             suggestions.append({
