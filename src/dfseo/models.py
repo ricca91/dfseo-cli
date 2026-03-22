@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class OrganicResult(BaseModel):
@@ -93,6 +93,12 @@ class ApiTask(BaseModel):
     status_code: int = Field(alias="status_code")
     status_message: str | None = Field(alias="status_message", default=None)
     result: list[dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("result", mode="before")
+    @classmethod
+    def coerce_null_result(cls, v: Any) -> list:
+        """Convert null API result to empty list."""
+        return v if v is not None else []
 
 
 class ApiResponse(BaseModel):

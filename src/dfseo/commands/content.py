@@ -160,7 +160,7 @@ def _parse_search_response(data: dict[str, Any], keyword: str) -> dict[str, Any]
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
         total_count = task_result.get("total_count", 0)
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             result_item = {
@@ -460,7 +460,7 @@ def _parse_sentiment_response(data: dict[str, Any], keyword: str) -> dict[str, A
     if api_response.tasks and api_response.tasks[0].result:
         task_result = api_response.tasks[0].result[0]
         total_count = task_result.get("total_count", 0)
-        items = task_result.get("items", [])
+        items = task_result.get("items") or []
 
         for item in items:
             result_item = {
