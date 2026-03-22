@@ -64,6 +64,17 @@ COST_PER_REQUEST: dict[str, float] = {
     "domain_analytics/technologies/domain_technologies/live": 0.01,
     # SERP Autocomplete
     "serp/google/autocomplete/live/advanced": 0.002,
+    # On-Page read endpoints
+    "on_page/summary": 0.0001,
+    "on_page/pages": 0.0005,
+    "on_page/links": 0.0005,
+    "on_page/duplicate_tags": 0.0005,
+    "on_page/duplicate_content": 0.0005,
+    "on_page/redirect_chains": 0.0005,
+    "on_page/non_indexable": 0.0005,
+    "on_page/resources": 0.0005,
+    "on_page/tasks_ready": 0.0,
+    "on_page/tasks": 0.0,
     # On-Page extras
     "on_page/keyword_density": 0.0005,
     "on_page/microdata": 0.0005,

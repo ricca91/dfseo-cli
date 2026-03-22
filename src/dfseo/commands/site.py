@@ -1961,7 +1961,7 @@ def site_tasks(
     try:
         client = _get_client(login, password, verbose)
 
-        endpoint = "/on_page/tasks_ready" if ready_only else "/on_page/tasks_ready"
+        endpoint = "/on_page/tasks_ready" if ready_only else "/on_page/tasks"
         data = client._request("GET", endpoint)
         client.close()
 
