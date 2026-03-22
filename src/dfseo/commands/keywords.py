@@ -155,6 +155,75 @@ def build_order_by(sort: str, order: str) -> list[str]:
     return [f"{field},{order}"]
 
 
+def build_labs_order_by(sort: str, order: str) -> list[str]:
+    """Build order_by array for Labs API with extended sort fields.
+
+    Args:
+        sort: Sort field
+        order: Sort order
+
+    Returns:
+        Order by array
+    """
+    field_map = {
+        "relevance": "relevance",
+        "volume": "keyword_data.keyword_info.search_volume",
+        "cpc": "keyword_data.keyword_info.cpc",
+        "difficulty": "keyword_data.keyword_properties.keyword_difficulty",
+        "position": "ranked_serp_element.serp_item.rank_group",
+        "traffic": "ranked_serp_element.serp_item.etv",
+    }
+
+    field = field_map.get(sort, "relevance")
+    return [f"{field},{order}"]
+
+
+def build_ranked_filters(
+    min_volume: int | None = None,
+    max_volume: int | None = None,
+    min_position: int | None = None,
+    max_position: int | None = None,
+) -> list[Any] | None:
+    """Build filter array for ranked keywords API.
+
+    Args:
+        min_volume: Minimum search volume
+        max_volume: Maximum search volume
+        min_position: Minimum position
+        max_position: Maximum position
+
+    Returns:
+        Filter array or None if no filters
+    """
+    filters = []
+
+    if min_volume is not None:
+        filters.append(["keyword_data.keyword_info.search_volume", ">=", min_volume])
+
+    if max_volume is not None:
+        filters.append(["keyword_data.keyword_info.search_volume", "<=", max_volume])
+
+    if min_position is not None:
+        filters.append(["ranked_serp_element.serp_item.rank_group", ">=", min_position])
+
+    if max_position is not None:
+        filters.append(["ranked_serp_element.serp_item.rank_group", "<=", max_position])
+
+    if not filters:
+        return None
+
+    if len(filters) == 1:
+        return filters[0]
+
+    # Combine multiple filters with "and"
+    result = []
+    for i, f in enumerate(filters):
+        if i > 0:
+            result.append("and")
+        result.append(f)
+    return result
+
+
 def _apply_google_ads_rate_limit() -> None:
     """Apply rate limiting for Google Ads endpoints (12 req/min)."""
     global _last_google_ads_request_time, _google_ads_request_count
@@ -1860,3 +1929,887 @@ def _format_ads_suggestions_csv(result: dict[str, Any]) -> str:
             writer.writerow(item)
 
     return output.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Labs competitive intelligence commands
+# ---------------------------------------------------------------------------
+
+
+VALID_RANKED_SORT_FIELDS = ["relevance", "volume", "position", "traffic"]
+
+
+def _labs_target_command(
+    target: str,
+    endpoint: str,
+    location: str | None,
+    language: str | None,
+    limit: int,
+    fields: str | None,
+    raw_params: str | None,
+    dry_run: bool,
+    output: str,
+    login: str | None,
+    password: str | None,
+    verbose: bool,
+    extra_payload: dict[str, Any] | None = None,
+) -> None:
+    """Generic handler for Labs target-based commands."""
+    from dfseo.validation import validate_target
+
+    defaults = _get_defaults()
+    location = location or defaults["location_name"]
+    language = language or defaults["language_name"]
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{
+        "target": target,
+        "location_name": location,
+        "language_name": language,
+        "limit": limit,
+    }]
+    if extra_payload:
+        payload[0].update(extra_payload)
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint=f"POST /v3/{endpoint}",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
+        data = client._request("POST", f"/{endpoint}", json_data=raw_payload or payload)
+        client.close()
+
+        from dfseo.models import ApiResponse
+        api_response = ApiResponse.model_validate(data)
+        cost = api_response.cost or 0.0
+
+        items = []
+        total_count = 0
+        if api_response.tasks and api_response.tasks[0].result:
+            task_result = api_response.tasks[0].result[0]
+            total_count = task_result.get("total_count", 0)
+            items = task_result.get("items", [])
+
+        result = {
+            "target": target,
+            "location": location,
+            "language": language,
+            "total_count": total_count,
+            "returned_count": len(items),
+            "items": items,
+            "cost": cost,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if fields_list:
+            result = filter_fields(result, fields_list)
+        print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+@keywords_app.command("ranked-keywords")
+def keywords_ranked_keywords(
+    target: str = typer.Argument(..., help="Domain to analyze (e.g., example.com)"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    min_volume: int = typer.Option(None, "--min-volume", help="Minimum search volume"),
+    max_volume: int = typer.Option(None, "--max-volume", help="Maximum search volume"),
+    min_position: int = typer.Option(None, "--min-position", help="Minimum SERP position"),
+    max_position: int = typer.Option(None, "--max-position", help="Maximum SERP position"),
+    sort: str = typer.Option("relevance", "--sort", help="Sort by (relevance/volume/position/traffic)"),
+    order: str = typer.Option("desc", "--order", help="Sort order (asc/desc)"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields to include"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload (bypasses all other flags)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost without executing"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get all keywords a domain currently ranks for."""
+    from dfseo.validation import validate_target
+
+    defaults = _get_defaults()
+    loc = location or defaults["location_name"]
+    lang = language or defaults["language_name"]
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    if sort not in VALID_RANKED_SORT_FIELDS:
+        print_error(f"Invalid sort field: {sort}")
+        raise typer.Exit(code=4)
+
+    try:
+        target = validate_target(target)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    filters = build_ranked_filters(min_volume, max_volume, min_position, max_position)
+
+    payload = [{
+        "target": target,
+        "location_name": loc,
+        "language_name": lang,
+        "limit": limit,
+    }]
+    if filters:
+        payload[0]["filters"] = filters
+    if sort != "relevance":
+        payload[0]["order_by"] = build_labs_order_by(sort, order)
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/dataforseo_labs/google/ranked_keywords/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
+        data = client._request(
+            "POST",
+            "/dataforseo_labs/google/ranked_keywords/live",
+            json_data=raw_payload or payload,
+        )
+        client.close()
+
+        result = _parse_ranked_keywords_response(data, target, loc, lang)
+
+        if fields_list:
+            result = filter_fields(result, fields_list)
+        formatted = _format_ranked_keywords_output(result, output_format)
+        print(formatted)
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_ranked_keywords_response(
+    data: dict[str, Any], target: str, location: str, language: str
+) -> dict[str, Any]:
+    """Parse ranked keywords API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    results = []
+    total_count = 0
+    cost = api_response.cost or 0.0
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        total_count = task_result.get("total_count", 0)
+
+        for item in task_result.get("items", []):
+            kd = item.get("keyword_data", {})
+            ki = kd.get("keyword_info", {})
+            rse = item.get("ranked_serp_element", {})
+            si = rse.get("serp_item", {})
+
+            results.append({
+                "keyword": kd.get("keyword", ""),
+                "position": si.get("rank_group", 0),
+                "url": si.get("relative_url", "") or si.get("url", ""),
+                "search_volume": ki.get("search_volume", 0),
+                "cpc": ki.get("cpc", 0.0),
+                "keyword_difficulty": kd.get("keyword_properties", {}).get("keyword_difficulty", 0),
+                "etv": si.get("etv", 0),
+                "search_intent": kd.get("search_intent_info", {}).get("main_intent", ""),
+            })
+
+    return {
+        "target": target,
+        "location": location,
+        "language": language,
+        "total_count": total_count,
+        "returned_count": len(results),
+        "results": results,
+        "cost": cost,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _format_ranked_keywords_output(result: dict[str, Any], output_format: str) -> str:
+    """Format ranked keywords output."""
+    if output_format in ("json", "json-pretty"):
+        return format_output(result, output_format)
+    elif output_format == "csv":
+        import csv
+        import io
+        out = io.StringIO()
+        results = result.get("results", [])
+        if results:
+            writer = csv.DictWriter(
+                out,
+                fieldnames=["keyword", "position", "url", "search_volume", "cpc", "keyword_difficulty", "etv", "search_intent"],
+                extrasaction="ignore",
+            )
+            writer.writeheader()
+            for item in results:
+                writer.writerow(item)
+        return out.getvalue()
+    else:
+        return _format_ranked_keywords_table(result)
+
+
+def _format_ranked_keywords_table(result: dict[str, Any]) -> str:
+    """Format ranked keywords as table."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console(force_terminal=True)
+    output_lines = []
+
+    target = result.get("target", "")
+    total = result.get("total_count", 0)
+    returned = result.get("returned_count", 0)
+
+    output_lines.append(f"  Ranked Keywords: {target} | Showing {returned} of {total:,}")
+    output_lines.append("")
+
+    results = result.get("results", [])
+    if results:
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("Keyword", style="white", min_width=20)
+        table.add_column("Pos", style="cyan", justify="right")
+        table.add_column("URL", style="blue")
+        table.add_column("Volume", style="green", justify="right")
+        table.add_column("KD", style="magenta", justify="right")
+        table.add_column("ETV", style="yellow", justify="right")
+        table.add_column("Intent", style="dim")
+
+        for item in results:
+            table.add_row(
+                item.get("keyword", "")[:25],
+                str(item.get("position", "-")),
+                item.get("url", "")[:35],
+                f"{item.get('search_volume', 0):,}",
+                str(item.get("keyword_difficulty", "-")),
+                str(item.get("etv", 0)),
+                item.get("search_intent", "-") or "-",
+            )
+
+        with console.capture() as capture:
+            console.print(table)
+        output_lines.append(capture.get())
+
+    cost = result.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+
+    return "\n".join(output_lines)
+
+
+@keywords_app.command("domain-rank")
+def keywords_domain_rank(
+    target: str = typer.Argument(..., help="Domain to analyze"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get domain rank overview with traffic and position metrics."""
+    _labs_target_command(
+        target, "dataforseo_labs/google/domain_rank_overview/live",
+        location, language, 1, fields, raw_params, dry_run, output, login, password, verbose,
+    )
+
+
+@keywords_app.command("historical-rank")
+def keywords_historical_rank(
+    target: str = typer.Argument(..., help="Domain to analyze"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """View historical domain ranking trends over time."""
+    _labs_target_command(
+        target, "dataforseo_labs/google/historical_rank_overview/live",
+        location, language, 100, fields, raw_params, dry_run, output, login, password, verbose,
+    )
+
+
+@keywords_app.command("historical-volume")
+def keywords_historical_volume(
+    keywords: list[str] = typer.Argument(None, help="Keywords to analyze"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    from_file: str = typer.Option(None, "--from-file", "-f", help="Read keywords from file"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get historical search volume trends for keywords."""
+    defaults = _get_defaults()
+    loc = location or defaults["location_name"]
+    lang = language or defaults["language_name"]
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        keyword_list = load_keywords(keywords, from_file)
+    except typer.Exit:
+        raise
+
+    if not keyword_list:
+        print_error("No keywords provided")
+        raise typer.Exit(code=4)
+
+    try:
+        keyword_list = [validate_keyword(k) for k in keyword_list]
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{"keywords": keyword_list, "location_name": loc, "language_name": lang}]
+
+    if dry_run:
+        result = format_dry_run_output(
+            endpoint="POST /v3/dataforseo_labs/google/historical_search_volume/live",
+            request_body=raw_payload or payload,
+        )
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
+        data = client._request("POST", "/dataforseo_labs/google/historical_search_volume/live", json_data=raw_payload or payload)
+        client.close()
+
+        from dfseo.models import ApiResponse
+        api_response = ApiResponse.model_validate(data)
+        cost = api_response.cost or 0.0
+        items = []
+        if api_response.tasks and api_response.tasks[0].result:
+            items = api_response.tasks[0].result[0].get("items", [])
+
+        result = {"keywords_count": len(keyword_list), "location": loc, "language": lang, "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
+        if fields_list:
+            result = filter_fields(result, fields_list)
+        print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+@keywords_app.command("serp-competitors")
+def keywords_serp_competitors(
+    keywords: list[str] = typer.Argument(None, help="Keywords to analyze"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    limit: int = typer.Option(20, "--limit", "-n", help="Max results"),
+    from_file: str = typer.Option(None, "--from-file", "-f", help="Read keywords from file"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Find SERP competitors for given keywords."""
+    defaults = _get_defaults()
+    loc = location or defaults["location_name"]
+    lang = language or defaults["language_name"]
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        keyword_list = load_keywords(keywords, from_file)
+    except typer.Exit:
+        raise
+
+    if not keyword_list:
+        print_error("No keywords provided")
+        raise typer.Exit(code=4)
+
+    try:
+        keyword_list = [validate_keyword(k) for k in keyword_list]
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{"keywords": keyword_list, "location_name": loc, "language_name": lang, "limit": limit}]
+
+    if dry_run:
+        result = format_dry_run_output(endpoint="POST /v3/dataforseo_labs/google/serp_competitors/live", request_body=raw_payload or payload)
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
+        data = client._request("POST", "/dataforseo_labs/google/serp_competitors/live", json_data=raw_payload or payload)
+        client.close()
+
+        from dfseo.models import ApiResponse
+        api_response = ApiResponse.model_validate(data)
+        cost = api_response.cost or 0.0
+        items, total_count = [], 0
+        if api_response.tasks and api_response.tasks[0].result:
+            task_result = api_response.tasks[0].result[0]
+            total_count = task_result.get("total_count", 0)
+            items = task_result.get("items", [])
+
+        result = {"seed_keywords": keyword_list, "location": loc, "language": lang, "total_count": total_count, "returned_count": len(items), "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
+        if fields_list:
+            result = filter_fields(result, fields_list)
+        print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+@keywords_app.command("competitors-domain")
+def keywords_competitors_domain(
+    target: str = typer.Argument(..., help="Domain to analyze"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    limit: int = typer.Option(20, "--limit", "-n", help="Max results"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Find domains competing for the same keywords."""
+    _labs_target_command(
+        target, "dataforseo_labs/google/competitors_domain/live",
+        location, language, limit, fields, raw_params, dry_run, output, login, password, verbose,
+    )
+
+
+@keywords_app.command("domain-intersection")
+def keywords_domain_intersection(
+    targets: list[str] = typer.Argument(..., help="Domains to compare (2-20)"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    min_volume: int = typer.Option(None, "--min-volume", help="Minimum search volume"),
+    max_volume: int = typer.Option(None, "--max-volume", help="Maximum search volume"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Find keyword overlap between domains (keyword gap analysis)."""
+    from dfseo.validation import validate_target
+
+    defaults = _get_defaults()
+    loc = location or defaults["location_name"]
+    lang = language or defaults["language_name"]
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    if len(targets) < 2:
+        print_error("At least 2 targets required")
+        raise typer.Exit(code=4)
+    if len(targets) > 20:
+        print_error("Maximum 20 targets allowed")
+        raise typer.Exit(code=4)
+
+    try:
+        targets = [validate_target(t) for t in targets]
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    targets_dict = {str(i + 1): t for i, t in enumerate(targets)}
+    filters = build_filters(min_volume, max_volume)
+
+    payload = [{"targets": targets_dict, "location_name": loc, "language_name": lang, "limit": limit}]
+    if filters:
+        payload[0]["filters"] = filters
+
+    if dry_run:
+        result = format_dry_run_output(endpoint="POST /v3/dataforseo_labs/google/domain_intersection/live", request_body=raw_payload or payload)
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
+        data = client._request("POST", "/dataforseo_labs/google/domain_intersection/live", json_data=raw_payload or payload)
+        client.close()
+
+        from dfseo.models import ApiResponse
+        api_response = ApiResponse.model_validate(data)
+        cost = api_response.cost or 0.0
+        items, total_count = [], 0
+        if api_response.tasks and api_response.tasks[0].result:
+            task_result = api_response.tasks[0].result[0]
+            total_count = task_result.get("total_count", 0)
+            items = task_result.get("items", [])
+
+        result = {"targets": targets, "location": loc, "language": lang, "total_count": total_count, "returned_count": len(items), "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
+        if fields_list:
+            result = filter_fields(result, fields_list)
+        print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+@keywords_app.command("relevant-pages")
+def keywords_relevant_pages(
+    target: str = typer.Argument(..., help="Domain to analyze"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Find most relevant pages for a domain with ranking metrics."""
+    _labs_target_command(
+        target, "dataforseo_labs/google/relevant_pages/live",
+        location, language, limit, fields, raw_params, dry_run, output, login, password, verbose,
+    )
+
+
+@keywords_app.command("subdomains")
+def keywords_subdomains(
+    target: str = typer.Argument(..., help="Domain to analyze"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Analyze subdomains and their ranking metrics."""
+    _labs_target_command(
+        target, "dataforseo_labs/google/subdomains/live",
+        location, language, limit, fields, raw_params, dry_run, output, login, password, verbose,
+    )
+
+
+@keywords_app.command("top-searches")
+def keywords_top_searches(
+    keyword: str = typer.Argument(..., help="Seed keyword"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get trending/top searches related to a keyword."""
+    defaults = _get_defaults()
+    loc = location or defaults["location_name"]
+    lang = language or defaults["language_name"]
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        keyword = validate_keyword(keyword)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    payload = [{"keyword": keyword, "location_name": loc, "language_name": lang, "limit": limit}]
+
+    if dry_run:
+        result = format_dry_run_output(endpoint="POST /v3/dataforseo_labs/google/top_searches/live", request_body=raw_payload or payload)
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
+        data = client._request("POST", "/dataforseo_labs/google/top_searches/live", json_data=raw_payload or payload)
+        client.close()
+
+        from dfseo.models import ApiResponse
+        api_response = ApiResponse.model_validate(data)
+        cost = api_response.cost or 0.0
+        items, total_count = [], 0
+        if api_response.tasks and api_response.tasks[0].result:
+            task_result = api_response.tasks[0].result[0]
+            total_count = task_result.get("total_count", 0)
+            items = task_result.get("items", [])
+
+        result = {"keyword": keyword, "location": loc, "language": lang, "total_count": total_count, "returned_count": len(items), "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
+        if fields_list:
+            result = filter_fields(result, fields_list)
+        print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+@keywords_app.command("categories-for-domain")
+def keywords_categories_for_domain(
+    target: str = typer.Argument(..., help="Domain to analyze"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Get topic categories a domain belongs to."""
+    _labs_target_command(
+        target, "dataforseo_labs/google/categories_for_domain/live",
+        location, language, 100, fields, raw_params, dry_run, output, login, password, verbose,
+    )
+
+
+@keywords_app.command("page-intersection")
+def keywords_page_intersection(
+    pages: list[str] = typer.Argument(..., help="Page URLs to compare (2-20)"),
+    location: str = typer.Option(None, "--location", "-l", help="Location name"),
+    language: str = typer.Option(None, "--language", "-L", help="Language name"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    min_volume: int = typer.Option(None, "--min-volume", help="Minimum search volume"),
+    max_volume: int = typer.Option(None, "--max-volume", help="Maximum search volume"),
+    fields: str = typer.Option(None, "--fields", "-F", help="Comma-separated fields"),
+    raw_params: str = typer.Option(None, "--raw-params", help="Raw JSON payload"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated cost"),
+    output: str = typer.Option("auto", "--output", "-o", help="Output format"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Find keyword overlap between specific pages (page-level gap analysis)."""
+    defaults = _get_defaults()
+    loc = location or defaults["location_name"]
+    lang = language or defaults["language_name"]
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    if len(pages) < 2:
+        print_error("At least 2 pages required")
+        raise typer.Exit(code=4)
+    if len(pages) > 20:
+        print_error("Maximum 20 pages allowed")
+        raise typer.Exit(code=4)
+
+    if raw_params:
+        try:
+            raw_payload = validate_raw_params(raw_params)
+        except ValueError as e:
+            print_error(str(e))
+            raise typer.Exit(code=4)
+    else:
+        raw_payload = None
+
+    pages_dict = {str(i + 1): p for i, p in enumerate(pages)}
+    filters = build_filters(min_volume, max_volume)
+
+    payload = [{"pages": pages_dict, "location_name": loc, "language_name": lang, "limit": limit}]
+    if filters:
+        payload[0]["filters"] = filters
+
+    if dry_run:
+        result = format_dry_run_output(endpoint="POST /v3/dataforseo_labs/google/page_intersection/live", request_body=raw_payload or payload)
+        print(format_output(result, output_format))
+        return
+
+    fields_list = fields.split(",") if fields else None
+
+    try:
+        client = _get_client(login, password, verbose)
+        data = client._request("POST", "/dataforseo_labs/google/page_intersection/live", json_data=raw_payload or payload)
+        client.close()
+
+        from dfseo.models import ApiResponse
+        api_response = ApiResponse.model_validate(data)
+        cost = api_response.cost or 0.0
+        items, total_count = [], 0
+        if api_response.tasks and api_response.tasks[0].result:
+            task_result = api_response.tasks[0].result[0]
+            total_count = task_result.get("total_count", 0)
+            items = task_result.get("items", [])
+
+        result = {"pages": pages, "location": loc, "language": lang, "total_count": total_count, "returned_count": len(items), "items": items, "cost": cost, "timestamp": datetime.now(timezone.utc).isoformat()}
+        if fields_list:
+            result = filter_fields(result, fields_list)
+        print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)

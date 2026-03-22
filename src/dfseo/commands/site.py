@@ -2083,3 +2083,469 @@ def site_instant(
     except Exception as e:
         print_error(f"Unexpected error: {e}")
         raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# keyword-density command
+# ---------------------------------------------------------------------------
+
+
+@app.command("keyword-density")
+def site_keyword_density(
+    task_id: str = typer.Argument(..., help="Task ID from crawl command"),
+    keyword: str = typer.Option(None, "--keyword", "-k", help="Filter by specific keyword"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    offset: int = typer.Option(0, "--offset", help="Offset for pagination"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format (json/table/csv)"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Analyze keyword density on crawled pages."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    if not _validate_task_id(task_id):
+        print_error(f"Invalid task_id format: {task_id}")
+        raise typer.Exit(code=4)
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        payload = [{
+            "id": task_id,
+            "limit": limit,
+            "offset": offset,
+        }]
+
+        if keyword:
+            payload[0]["filters"] = ["keyword", "=", keyword]
+
+        data = client._request("POST", "/on_page/keyword_density", json_data=payload)
+        client.close()
+
+        result = _parse_keyword_density_response(data, task_id)
+
+        if output_format == "table":
+            print(_format_keyword_density_table(result))
+        elif output_format == "csv":
+            print(_format_keyword_density_csv(result))
+        else:
+            print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_keyword_density_response(data: dict[str, Any], task_id: str) -> dict[str, Any]:
+    """Parse keyword density API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    items_list = []
+    total_count = 0
+    cost = api_response.cost or 0.0
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        total_count = task_result.get("total_count", 0)
+
+        for item in task_result.get("items", []):
+            items_list.append({
+                "keyword": item.get("keyword", ""),
+                "frequency": item.get("frequency", 0),
+                "density": item.get("density", 0.0),
+                "url": item.get("url", ""),
+            })
+
+    return {
+        "task_id": task_id,
+        "total_count": total_count,
+        "returned_count": len(items_list),
+        "items": items_list,
+        "cost": cost,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _format_keyword_density_table(result: dict[str, Any]) -> str:
+    """Format keyword density results as table."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console(force_terminal=True)
+    output_lines = []
+
+    total = result.get("total_count", 0)
+    output_lines.append(f"  Keyword Density | Total: {total:,}")
+    output_lines.append("")
+
+    items = result.get("items", [])
+    if items:
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("Keyword", style="white", min_width=20)
+        table.add_column("Frequency", style="cyan", justify="right")
+        table.add_column("Density", style="green", justify="right")
+        table.add_column("URL", style="blue")
+
+        for item in items[:50]:
+            density = item.get("density", 0.0)
+            table.add_row(
+                item.get("keyword", "")[:30],
+                str(item.get("frequency", 0)),
+                f"{density:.2%}" if density else "-",
+                item.get("url", "")[:50],
+            )
+
+        with console.capture() as capture:
+            console.print(table)
+        output_lines.append(capture.get())
+
+    cost = result.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+
+    return "\n".join(output_lines)
+
+
+def _format_keyword_density_csv(result: dict[str, Any]) -> str:
+    """Format keyword density results as CSV."""
+    import csv
+    import io
+
+    output_buf = io.StringIO()
+    items = result.get("items", [])
+
+    if items:
+        writer = csv.DictWriter(
+            output_buf,
+            fieldnames=["keyword", "frequency", "density", "url"],
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        for item in items:
+            writer.writerow(item)
+
+    return output_buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# microdata command
+# ---------------------------------------------------------------------------
+
+
+@app.command("microdata")
+def site_microdata(
+    task_id: str = typer.Argument(..., help="Task ID from crawl command"),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max results"),
+    offset: int = typer.Option(0, "--offset", help="Offset for pagination"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format (json/table/csv)"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Analyze structured data (schema.org/microdata) on crawled pages."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    if not _validate_task_id(task_id):
+        print_error(f"Invalid task_id format: {task_id}")
+        raise typer.Exit(code=4)
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        payload = [{
+            "id": task_id,
+            "limit": limit,
+            "offset": offset,
+        }]
+
+        data = client._request("POST", "/on_page/microdata", json_data=payload)
+        client.close()
+
+        result = _parse_microdata_response(data, task_id)
+
+        if output_format == "table":
+            print(_format_microdata_table(result))
+        elif output_format == "csv":
+            print(_format_microdata_csv(result))
+        else:
+            print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_microdata_response(data: dict[str, Any], task_id: str) -> dict[str, Any]:
+    """Parse microdata API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    items_list = []
+    total_count = 0
+    cost = api_response.cost or 0.0
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        total_count = task_result.get("total_count", 0)
+
+        for item in task_result.get("items", []):
+            items_list.append({
+                "url": item.get("url", ""),
+                "test_results": item.get("test_results", {}),
+                "microdata_types": item.get("microdata", {}).get("types", []) if item.get("microdata") else [],
+                "json_ld": item.get("json_ld", []),
+                "rdfa": item.get("rdfa", []),
+                "open_graph": item.get("open_graph", {}),
+            })
+
+    return {
+        "task_id": task_id,
+        "total_count": total_count,
+        "returned_count": len(items_list),
+        "items": items_list,
+        "cost": cost,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _format_microdata_table(result: dict[str, Any]) -> str:
+    """Format microdata results as table."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console(force_terminal=True)
+    output_lines = []
+
+    total = result.get("total_count", 0)
+    output_lines.append(f"  Structured Data (Microdata) | Total pages: {total:,}")
+    output_lines.append("")
+
+    items = result.get("items", [])
+    if items:
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("URL", style="blue", min_width=30)
+        table.add_column("Types", style="white")
+        table.add_column("JSON-LD", style="green", justify="right")
+        table.add_column("Open Graph", style="yellow")
+
+        for item in items[:50]:
+            types = item.get("microdata_types", [])
+            types_str = ", ".join(str(t) for t in types[:3]) if types else "-"
+            json_ld_count = len(item.get("json_ld", []))
+            og = item.get("open_graph", {})
+            og_str = "Yes" if og else "No"
+
+            table.add_row(
+                item.get("url", "")[:45],
+                types_str[:30],
+                str(json_ld_count),
+                og_str,
+            )
+
+        with console.capture() as capture:
+            console.print(table)
+        output_lines.append(capture.get())
+
+    cost = result.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+
+    return "\n".join(output_lines)
+
+
+def _format_microdata_csv(result: dict[str, Any]) -> str:
+    """Format microdata results as CSV."""
+    import csv
+    import io
+
+    output_buf = io.StringIO()
+    items = result.get("items", [])
+
+    if items:
+        writer = csv.writer(output_buf)
+        writer.writerow(["url", "microdata_types", "json_ld_count", "has_open_graph"])
+        for item in items:
+            writer.writerow([
+                item.get("url", ""),
+                "|".join(str(t) for t in item.get("microdata_types", [])),
+                len(item.get("json_ld", [])),
+                bool(item.get("open_graph")),
+            ])
+
+    return output_buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# waterfall command
+# ---------------------------------------------------------------------------
+
+
+@app.command("waterfall")
+def site_waterfall(
+    url: str = typer.Argument(..., help="URL to analyze resource loading"),
+    output: str = typer.Option(None, "--output", "-o", help="Output format (json/table/csv)"),
+    login: str = typer.Option(None, "--login", help="DataForSEO login"),
+    password: str | None = typer.Option(None, "--password", help="DataForSEO password"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+) -> None:
+    """Analyze page load waterfall (resource loading timeline)."""
+    defaults = _get_defaults()
+    output_format = output or defaults["output"]
+
+    if output_format not in VALID_OUTPUTS:
+        print_error(f"Invalid output format: {output_format}")
+        raise typer.Exit(code=4)
+
+    try:
+        client = _get_client(login, password, verbose)
+
+        payload = [{
+            "url": url,
+        }]
+
+        data = client._request("POST", "/on_page/waterfall", json_data=payload)
+        client.close()
+
+        result = _parse_waterfall_response(data, url)
+
+        if output_format == "table":
+            print(_format_waterfall_table(result))
+        elif output_format == "csv":
+            print(_format_waterfall_csv(result))
+        else:
+            print(format_output(result, output_format))
+
+    except AuthenticationError as e:
+        print_error(f"Authentication error: {e}")
+        raise typer.Exit(code=2)
+    except DataForSeoError as e:
+        print_error(f"Error: {e}")
+        raise typer.Exit(code=e.exit_code)
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(code=1)
+
+
+def _parse_waterfall_response(data: dict[str, Any], url: str) -> dict[str, Any]:
+    """Parse waterfall API response."""
+    from dfseo.models import ApiResponse
+
+    api_response = ApiResponse.model_validate(data)
+
+    resources = []
+    cost = api_response.cost or 0.0
+
+    if api_response.tasks and api_response.tasks[0].result:
+        task_result = api_response.tasks[0].result[0]
+        items = task_result.get("items", [])
+
+        for item in items:
+            resources.append({
+                "resource_url": item.get("resource_url", ""),
+                "resource_type": item.get("resource_type", ""),
+                "status_code": item.get("status_code", 0),
+                "size": item.get("size", 0),
+                "duration": item.get("duration_time", 0),
+                "fetch_start": item.get("fetch_start", 0),
+                "fetch_end": item.get("fetch_end", 0),
+            })
+
+    return {
+        "url": url,
+        "resources_count": len(resources),
+        "resources": resources,
+        "cost": cost,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _format_waterfall_table(result: dict[str, Any]) -> str:
+    """Format waterfall results as table."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console(force_terminal=True)
+    output_lines = []
+
+    url = result.get("url", "")
+    count = result.get("resources_count", 0)
+
+    output_lines.append(f"  Waterfall: {url[:60]} | Resources: {count}")
+    output_lines.append("")
+
+    resources = result.get("resources", [])
+    if resources:
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("Resource", style="blue", min_width=30)
+        table.add_column("Type", style="cyan")
+        table.add_column("Status", style="yellow", justify="right")
+        table.add_column("Size", style="green", justify="right")
+        table.add_column("Duration", style="magenta", justify="right")
+
+        for item in resources[:50]:
+            size = item.get("size", 0)
+            size_str = f"{size / 1024:.1f}KB" if size > 0 else "-"
+            duration = item.get("duration", 0)
+            duration_str = f"{duration:.0f}ms" if duration else "-"
+
+            table.add_row(
+                item.get("resource_url", "")[-45:],
+                item.get("resource_type", "-"),
+                str(item.get("status_code", "-")),
+                size_str,
+                duration_str,
+            )
+
+        with console.capture() as capture:
+            console.print(table)
+        output_lines.append(capture.get())
+
+    cost = result.get("cost", 0)
+    output_lines.append(f"\n  Cost: ${cost:.4f}")
+
+    return "\n".join(output_lines)
+
+
+def _format_waterfall_csv(result: dict[str, Any]) -> str:
+    """Format waterfall results as CSV."""
+    import csv
+    import io
+
+    output_buf = io.StringIO()
+    resources = result.get("resources", [])
+
+    if resources:
+        writer = csv.DictWriter(
+            output_buf,
+            fieldnames=["resource_url", "resource_type", "status_code", "size", "duration", "fetch_start", "fetch_end"],
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        for item in resources:
+            writer.writerow(item)
+
+    return output_buf.getvalue()

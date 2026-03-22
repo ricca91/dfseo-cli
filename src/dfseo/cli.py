@@ -7,12 +7,14 @@ import sys
 import typer
 
 from dfseo.commands.auth import auth_app
+from dfseo.commands.backlinks import app as backlinks_app
 from dfseo.commands.config import config_app
+from dfseo.commands.content import content_app
 from dfseo.commands.describe import app as describe_app
+from dfseo.commands.domain import domain_app
 from dfseo.commands.keywords import keywords_app
 from dfseo.commands.serp import serp_app
 from dfseo.commands.site import app as site_app
-from dfseo.commands.backlinks import app as backlinks_app
 from dfseo.output import print_error
 
 app = typer.Typer(
@@ -23,12 +25,14 @@ app = typer.Typer(
 
 # Register subcommands
 app.add_typer(auth_app, name="auth")
+app.add_typer(backlinks_app, name="backlinks")
 app.add_typer(config_app, name="config")
+app.add_typer(content_app, name="content")
 app.add_typer(describe_app, name="describe")
+app.add_typer(domain_app, name="domain")
 app.add_typer(keywords_app, name="keywords")
 app.add_typer(serp_app, name="serp")
 app.add_typer(site_app, name="site")
-app.add_typer(backlinks_app, name="backlinks")
 
 
 def _version_callback(value: bool) -> None:

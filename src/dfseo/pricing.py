@@ -23,6 +23,17 @@ COST_PER_REQUEST: dict[str, float] = {
     "dataforseo_labs/google/search_intent/live": 0.01,
     "dataforseo_labs/google/relevant_pages/live": 0.021,
     "dataforseo_labs/google/keywords_for_site/live": 0.021,
+    "dataforseo_labs/google/ranked_keywords/live": 0.021,
+    "dataforseo_labs/google/domain_rank_overview/live": 0.021,
+    "dataforseo_labs/google/historical_rank_overview/live": 0.021,
+    "dataforseo_labs/google/historical_search_volume/live": 0.021,
+    "dataforseo_labs/google/serp_competitors/live": 0.021,
+    "dataforseo_labs/google/competitors_domain/live": 0.021,
+    "dataforseo_labs/google/domain_intersection/live": 0.021,
+    "dataforseo_labs/google/subdomains/live": 0.021,
+    "dataforseo_labs/google/top_searches/live": 0.021,
+    "dataforseo_labs/google/categories_for_domain/live": 0.021,
+    "dataforseo_labs/google/page_intersection/live": 0.021,
     # Google Ads
     "keywords_data/google_ads/search_volume/live": 0.005,
     "keywords_data/google_ads/keywords_for_keywords/live": 0.005,
@@ -45,6 +56,18 @@ COST_PER_REQUEST: dict[str, float] = {
     "backlinks/competitors/live": 0.02,
     "backlinks/page_intersection/live": 0.02,
     "backlinks/pages_summary/live": 0.02,
+    # Content Analysis
+    "content_analysis/search/live": 0.01,
+    "content_analysis/summary/live": 0.01,
+    "content_analysis/sentiment_analysis/live": 0.01,
+    # Domain Analytics
+    "domain_analytics/technologies/domain_technologies/live": 0.01,
+    # SERP Autocomplete
+    "serp/google/autocomplete/live/advanced": 0.002,
+    # On-Page extras
+    "on_page/keyword_density": 0.0005,
+    "on_page/microdata": 0.0005,
+    "on_page/waterfall": 0.001,
 }
 
 
