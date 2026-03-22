@@ -46,10 +46,9 @@ dfseo backlinks anchors "domain.com" --sort backlinks --limit 30
 ### Decision
 - Over-optimized distribution: future outreach should use branded, URL,
   or generic anchor text to dilute the ratio.
-- Healthy distribution: move on to opportunity discovery without
-  imposing anchor constraints.
-- Spammy anchors detected: build a disavow file before pursuing new
-  links.
+- Healthy distribution: move on to opportunity discovery without anchor
+  constraints.
+- Spammy anchors detected: build a disavow file before new links.
 
 ---
 
@@ -87,12 +86,11 @@ dfseo backlinks referring-domains "competitor.com" --sort rank --limit 50
   300 beats an unrelated site at rank 500.
 
 ### Decision
-- Links mainly from news outlets: the user needs a digital PR strategy
-  with newsworthy angles.
-- Most links from blogs: guest posting and content collaboration are
-  the best approaches.
-- Directory links dominate: submit to the same directories and resource
-  lists as a quick win.
+- Links mainly from news outlets: the user needs a digital PR strategy.
+- Most links from blogs: guest posting and content collaboration work
+  best.
+- Directory links dominate: submit to the same directories as a quick
+  win.
 
 ---
 
@@ -114,7 +112,7 @@ dfseo backlinks list "domain.com" --status lost
   negative SEO; a sudden drop may mean linking pages were removed.
 
 ### Decision
-- Steady flow of quality new links: the current strategy is working.
+- Steady flow of quality new links: current strategy is working.
   Continue and scale.
 - Lost links outpace new links: pause outreach and investigate root
   causes (content changes, expired domains, page removals).
@@ -137,7 +135,6 @@ Organize the deliverable into these sections:
    (blogs, news, directories, resource pages).
 5. **Recovery Opportunities** -- broken or lost backlinks worth
    reclaiming, with the original linking URL.
-6. **Monitoring Cadence** -- re-run frequency and thresholds that
-   should trigger action.
+6. **Monitoring Cadence** -- re-run frequency and action thresholds.
 7. **Action Items** -- numbered next steps sorted by expected impact
    and required effort.
